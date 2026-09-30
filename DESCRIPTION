@@ -20,7 +20,7 @@ Description:
   it excels at untangling egregiously overplotted Kaplan-Meier curves,
   and the digitization phase achieves a high level of pixel precision.
 License: MIT + file LICENSE
-URL: https://wlandau.github.io/retroglyph
+URL: https://wlandau.github.io/retroglyph/
 BugReports: https://github.com/wlandau/retroglyph/issues
 Depends:
   R (>= 4.5.0)
