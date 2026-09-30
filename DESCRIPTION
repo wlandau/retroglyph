@@ -1,7 +1,7 @@
 Package: retroglyph
 Title: A Trusted Mini-Agent to Reconstruct Individual
   Patient Data from Kaplan-Meier Images
-Version: 0.0.7
+Version: 0.0.7.9000
 Authors@R: c(
   person(
     given = c("William", "Michael"),
