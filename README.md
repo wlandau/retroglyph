@@ -589,6 +589,13 @@ directly from Kaplan-Meier images. It uses the visual language models
 and OCR to interpret Kaplan-Meier-specific features of images, and it
 uses a classic K-medoids-based algorithm to isolate and find paths.
 
+## Code of Conduct
+
+Please note that the `retroglyph` project is released with a
+[Contributor Code of
+Conduct](https://github.com/wlandau/retroglyph/blob/main/CODE_OF_CONDUCT.md).
+By participating in this project you agree to abide by its terms.
+
 ## References
 
 <div id="refs" class="references csl-bib-body hanging-indent">
