@@ -1,0 +1,57 @@
+Package: retroglyph
+Title: A Trusted Mini-Agent to Reconstruct Individual
+  Patient Data from Kaplan-Meier Images
+Version: 0.0.7
+Authors@R: c(
+  person(
+    given = c("William", "Michael"),
+    family = "Landau",
+    role = c("aut", "cre"),
+    email = "will.landau.oss@gmail.com"
+  ),
+  person(
+    family = "Eli Lilly and Company",
+    role = c("cph", "fnd")
+  ))
+Description:
+  The enclosed agent reconstructs individual patient data from
+  published Kaplan-Meier curve images.
+  Relative to other Kaplan-Meier reconstruction tools,
+  it excels at untangling egregiously overplotted Kaplan-Meier curves,
+  and the digitization phase achieves a high level of pixel precision.
+License: MIT + file LICENSE
+URL: https://wlandau.github.io/retroglyph
+BugReports: https://github.com/wlandau/retroglyph/issues
+Depends:
+  R (>= 4.5.0)
+Imports:
+  base64enc,
+  bslib,
+  diffviewer,
+  dplyr,
+  ellmer (>= 0.4.1),
+  htmltools,
+  htmlwidgets,
+  igraph,
+  IPDfromKM,
+  later,
+  magick,
+  markdown,
+  promises,
+  R6,
+  R.utils,
+  shiny,
+  shinychat (>= 0.5.0),
+  stats,
+  survival,
+  tesseract,
+  tibble,
+  tools,
+  utils
+Suggests:
+  shinytest2,
+  testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Language: en-US
+Encoding: UTF-8
+Config/roxygen2/version: 8.1.0

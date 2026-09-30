@@ -1,0 +1,7 @@
+library(retroglyph)
+chat <- ellmer::chat_anthropic(model = "sonnet", echo = "all")
+agent <- retro_agent(chat)
+source <- system.file("simulation.png", package = "retroglyph")
+system.time(agent$reconstruct(source))
+agent$compare(data = "survival")
+# agent$compare(data = "trace")

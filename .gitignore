@@ -1,0 +1,13 @@
+*~
+*.out
+*.Rout
+.claude
+.DS_Store
+.Rapp.history
+.RData
+.Rhistory
+.Rproj.user
+vignettes/*.html
+README.html
+inst/app/about.html
+docs

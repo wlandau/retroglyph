@@ -1,0 +1,22 @@
+url: https://wlandau.github.io/retroglyph
+repo:
+  url:
+    home: https://github.com/wlandau/retroglyph
+    source: https://github.com/wlandau/retroglyph
+    issue: https://github.com/wlandau/retroglyph/issues/
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#6B2B1A"
+reference:
+- title: Agents
+  contents:
+  - retro_agent
+  - retro_agent_class
+- title: Apps
+  contents:
+  - retro_app
+- title: Chats
+  contents:
+  - retro_chat_mock
+  - retro_chat_replay_simulation
