@@ -2,7 +2,7 @@ pandoc: 3.8.3
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles: {}
-last_built: 2026-09-30T19:47Z
+last_built: 2026-09-30T20:14Z
 urls:
   reference: https://wlandau.github.io/retroglyph/reference
   article: https://wlandau.github.io/retroglyph/articles
