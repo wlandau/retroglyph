@@ -1,5 +1,17 @@
 # Changelog
 
+## retroglyph 0.0.8
+
+- `retro_image_png()` now flattens the source image onto an opaque white
+  background, and `retro_agent_class$register()` routes every format
+  through it instead of copying PNG files verbatim.
+  [`magick::image_raster()`](https://docs.ropensci.org/magick/reference/editing.html)
+  reports a fully transparent pixel as the color name `"transparent"`
+  rather than as hex, which `retro_color_rgb()` truncated to `"transpa"`
+  and `retro_color_rgba()` extended to `"transpaff"`, both invalid color
+  names that stopped the pipeline. Removing the alpha channel once at
+  the entry point means no later step encounters a non-hex pixel value.
+
 ## retroglyph 0.0.7
 
 - Collapse tool call cards in

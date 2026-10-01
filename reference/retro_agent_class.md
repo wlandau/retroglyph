@@ -70,16 +70,17 @@ Create a new \`retro_agent\` object.
 
 ### `retro_agent$register()`
 
-Register a source image for reconstruction: normalize it to PNG, store
-it in \`state\$image_source\`, and optionally clear the chat's turn
-history. This is the half of reconstruction that needs no model call, so
-a Shiny app can call it as soon as the user uploads a file - before the
-chat loop (driven by \`shinychat\`'s or \`ellmer\`'s own round trip to
-the model, triggered separately by the user typing into the chat) ever
-starts. \[retro_agent_class\] \$reconstruct() calls this method itself,
-so most callers never need to call it directly. Resets
-\`state\$image_quantized\` and \`state\$data_label\` to \`NULL\` so the
-four-tool workflow (quantize → label → distill → data) starts fresh.
+Register a source image for reconstruction: normalize it to an opaque
+PNG, store it in \`state\$image_source\`, and optionally clear the
+chat's turn history. This is the half of reconstruction that needs no
+model call, so a Shiny app can call it as soon as the user uploads a
+file - before the chat loop (driven by \`shinychat\`'s or \`ellmer\`'s
+own round trip to the model, triggered separately by the user typing
+into the chat) ever starts. \[retro_agent_class\] \$reconstruct() calls
+this method itself, so most callers never need to call it directly.
+Resets \`state\$image_quantized\` and \`state\$data_label\` to \`NULL\`
+so the four-tool workflow (quantize → label → distill → data) starts
+fresh.
 
 #### Usage
 

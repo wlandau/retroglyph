@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">retroglyph</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.7.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,11 @@
       <small>Source: <a href="https://github.com/wlandau/retroglyph/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.0.8" id="retroglyph-008">retroglyph 0.0.8<a class="anchor" aria-label="anchor" href="#retroglyph-008"></a></h2>
+<ul><li>
+<code>retro_image_png()</code> now flattens the source image onto an opaque white background, and <code>retro_agent_class$register()</code> routes every format through it instead of copying PNG files verbatim. <code><a href="https://docs.ropensci.org/magick/reference/editing.html" class="external-link">magick::image_raster()</a></code> reports a fully transparent pixel as the color name <code>"transparent"</code> rather than as hex, which <code>retro_color_rgb()</code> truncated to <code>"transpa"</code> and <code>retro_color_rgba()</code> extended to <code>"transpaff"</code>, both invalid color names that stopped the pipeline. Removing the alpha channel once at the entry point means no later step encounters a non-hex pixel value.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.0.7" id="retroglyph-007">retroglyph 0.0.7<a class="anchor" aria-label="anchor" href="#retroglyph-007"></a></h2>
 <ul><li>Collapse tool call cards in <code><a href="../reference/retro_app.html">retro_app()</a></code> by default instead of expanding them.</li>
