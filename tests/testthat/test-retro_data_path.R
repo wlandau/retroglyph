@@ -1,6 +1,6 @@
 # Helper: create a small quantized PNG from a character matrix of hex colors.
 write_pixel_matrix <- function(pixel_matrix, path) {
-  magick::image_read(pixel_matrix) |>
+  retro_test_image(pixel_matrix) |>
     magick::image_write(path = path)
 }
 

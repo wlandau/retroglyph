@@ -68,11 +68,14 @@ test_that("retro_agent$register() returns invisibly and stores the source", {
   expect_null(result$value)
   expect_false(result$visible)
   expect_true(file.exists(agent$state$image_source))
-  # PNG sources pass through byte-for-byte.
+  # Every format is re-encoded through retro_image_png(), so the registered
+  # copy is not byte-identical, but an already-opaque PNG keeps its pixels.
   expect_equal(
-    tools::md5sum(file),
-    tools::md5sum(agent$state$image_source),
-    ignore_attr = TRUE
+    as.vector(magick::image_raster(magick::image_read(file), tidy = FALSE)),
+    as.vector(magick::image_raster(
+      magick::image_read(agent$state$image_source),
+      tidy = FALSE
+    ))
   )
 })
 
@@ -164,11 +167,14 @@ test_that("retro_agent$reconstruct() copies source and returns invisibly", {
   result <- agent$reconstruct(file)
   expect_null(result)
   expect_true(file.exists(agent$state$image_source))
-  # PNG sources pass through byte-for-byte.
+  # Every format is re-encoded through retro_image_png(), so the registered
+  # copy is not byte-identical, but an already-opaque PNG keeps its pixels.
   expect_equal(
-    tools::md5sum(file),
-    tools::md5sum(agent$state$image_source),
-    ignore_attr = TRUE
+    as.vector(magick::image_raster(magick::image_read(file), tidy = FALSE)),
+    as.vector(magick::image_raster(
+      magick::image_read(agent$state$image_source),
+      tidy = FALSE
+    ))
   )
 })
 

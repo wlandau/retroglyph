@@ -66,12 +66,12 @@ retro_agent_class <- R6::R6Class(
       self$state <- state
     },
     #' @description Register a source image for reconstruction: normalize it
-    #'   to PNG, store it in `state$image_source`, and optionally clear the
-    #'   chat's turn history. This is the half of reconstruction that needs
-    #'   no model call, so a Shiny app can call it as soon as the user
-    #'   uploads a file - before the chat loop (driven by `shinychat`'s or
-    #'   `ellmer`'s own round trip to the model, triggered separately by the
-    #'   user typing into the chat) ever starts. [retro_agent_class]
+    #'   to an opaque PNG, store it in `state$image_source`, and optionally
+    #'   clear the chat's turn history. This is the half of reconstruction
+    #'   that needs no model call, so a Shiny app can call it as soon as the
+    #'   user uploads a file - before the chat loop (driven by `shinychat`'s
+    #'   or `ellmer`'s own round trip to the model, triggered separately by
+    #'   the user typing into the chat) ever starts. [retro_agent_class]
     #'   $reconstruct() calls this method itself, so most callers never need
     #'   to call it directly. Resets `state$image_quantized` and
     #'   `state$data_label` to `NULL` so the four-tool workflow
@@ -99,16 +99,12 @@ retro_agent_class <- R6::R6Class(
       if (clear) {
         self$chat$set_turns(list())
       }
-      extension <- tolower(tools::file_ext(file))
       self$state$image_source <- tempfile(fileext = ".png")
       self$state$image_quantized <- NULL
       self$state$data_label <- NULL
-      # PNG sources pass through untouched; other formats are rasterized to PNG.
-      if (extension == "png") {
-        file.copy(from = file, to = self$state$image_source, overwrite = TRUE)
-      } else {
-        retro_image_png(input = file, output = self$state$image_source)
-      }
+      # Every source format, PNG included, goes through the same entry point,
+      # so the whole downstream pipeline is guaranteed an opaque PNG raster.
+      retro_image_png(input = file, output = self$state$image_source)
       invisible(NULL)
     },
     #' @description Run the full reconstruction workflow on a source image:

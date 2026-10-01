@@ -38,6 +38,7 @@ importFrom(igraph,
 )
 importFrom(later,later)
 importFrom(magick,
+  image_background,
   image_convert,
   image_draw,
   image_info,

@@ -2,14 +2,26 @@
 #' @keywords internal
 #' @noRd
 #' @description Read an image in any format that `magick` supports (such as
-#'   SVG or JPEG) and write it out as a PNG raster. The conversion is
-#'   format-only: pixels, colors, and transparency pass through unchanged,
-#'   so the background is never altered.
+#'   SVG or JPEG) and write it out as an opaque PNG raster. Pixels and
+#'   colors pass through unchanged, so an opaque background is never
+#'   altered. Transparency is the one exception: it is flattened onto
+#'   white.
 #' @details Downstream image functions in this package operate on PNG
 #'   rasters. This helper normalizes an arbitrary source image to PNG at
 #'   the entry point of the pipeline. For vector inputs (such as SVG), the
 #'   `density` argument controls the rasterization resolution; it has no
 #'   effect on inputs that are already rasters.
+#'
+#'   Flattening is what makes the rest of the pipeline safe to write in
+#'   terms of hex colors. `magick::image_raster()` reports a fully
+#'   transparent pixel as the color name `"transparent"` rather than as
+#'   hex, and which images carry an alpha channel varies by `ImageMagick`
+#'   version. Removing the alpha channel once, here, means no downstream
+#'   step ever sees a non-hex pixel value. Converting the colorspace does
+#'   not help; only dropping the alpha channel does. Flattening also gives
+#'   a transparent pixel the same value as the white background it is
+#'   drawn over, so background detection counts it as background rather
+#'   than as a distinct curve color.
 #' @return `NULL` (invisibly). Called for its side effect of writing
 #'   an image file.
 #' @param input Character scalar, path to the source image file.
@@ -29,6 +41,7 @@ retro_image_png <- function(input, output, density = 300) {
       length(output) == 1L
   )
   magick::image_read(input, density = density) |>
+    magick::image_background("white", flatten = TRUE) |>
     magick::image_write(path = output, format = "png")
   invisible(NULL)
 }

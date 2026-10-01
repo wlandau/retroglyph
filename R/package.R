@@ -10,8 +10,8 @@
 #' @importFrom igraph add_edges components E make_empty_graph shortest_paths
 #'   vcount
 #' @importFrom later later
-#' @importFrom magick image_convert image_draw image_info image_quantize
-#'   image_raster image_read image_write
+#' @importFrom magick image_background image_convert image_draw image_info
+#'   image_quantize image_raster image_read image_write
 #' @importFrom markdown mark
 #' @importFrom promises promise then
 #' @importFrom R6 R6Class

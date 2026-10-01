@@ -5,7 +5,7 @@ retro_panel_synthetic_image <- function() {
   matrix <- matrix("#ffffffff", nrow = 100, ncol = 100)
   matrix[10:80, 20] <- "#000000ff"
   matrix[80, 20:90] <- "#000000ff"
-  magick::image_write(magick::image_read(matrix), input)
+  magick::image_write(retro_test_image(matrix), input)
   input
 }
 
@@ -23,7 +23,7 @@ retro_panel_synthetic_boxed_image <- function() {
   matrix[80, 20:90] <- "#000000ff"
   matrix[5, 25:95] <- "#000000ff"
   matrix[15:75, 95] <- "#000000ff"
-  magick::image_write(magick::image_read(matrix), input)
+  magick::image_write(retro_test_image(matrix), input)
   input
 }
 
@@ -322,7 +322,7 @@ test_that("retro_panel_line_pad() measures a vertical line's thickness", {
   pixel_matrix[10:80, 20] <- "#000000ff"
   input <- tempfile(fileext = ".png")
   on.exit(unlink(input))
-  magick::image_write(magick::image_read(pixel_matrix), input)
+  magick::image_write(retro_test_image(pixel_matrix), input)
   endpoints <- data.frame(x = c(20L, 20L), y = c(10L, 80L))
   expect_equal(retro_panel_line_pad(input, endpoints, median_height = 6), 3L)
 })
@@ -332,7 +332,7 @@ test_that("retro_panel_line_pad() measures a horizontal line's thickness", {
   pixel_matrix[80, 20:90] <- "#000000ff"
   input <- tempfile(fileext = ".png")
   on.exit(unlink(input))
-  magick::image_write(magick::image_read(pixel_matrix), input)
+  magick::image_write(retro_test_image(pixel_matrix), input)
   endpoints <- data.frame(x = c(20L, 90L), y = c(80L, 80L))
   expect_equal(retro_panel_line_pad(input, endpoints, median_height = 6), 3L)
 })
@@ -413,7 +413,7 @@ test_that("retro_panel_position_top() clips the outward margin to available room
   pixel_matrix[foreground] <- "#000000ff"
   input <- tempfile(fileext = ".png")
   on.exit(unlink(input))
-  magick::image_write(magick::image_read(pixel_matrix), input)
+  magick::image_write(retro_test_image(pixel_matrix), input)
   result <- retro_panel_position_top(
     foreground = foreground,
     x1 = 20L,
@@ -472,7 +472,7 @@ test_that("retro_panel_position_right() clips the outward margin to available ro
   pixel_matrix[foreground] <- "#000000ff"
   input <- tempfile(fileext = ".png")
   on.exit(unlink(input))
-  magick::image_write(magick::image_read(pixel_matrix), input)
+  magick::image_write(retro_test_image(pixel_matrix), input)
   result <- retro_panel_position_right(
     foreground = foreground,
     x2 = 98L,

@@ -2,10 +2,25 @@
 # running any test, so these are available everywhere with no explicit
 # source() call.
 
+# Read a hex-color character matrix into an opaque magick image.
+#
+# The package itself only ever sees images that came through
+# retro_image_png(), which flattens away the alpha channel. Tests build
+# images straight from a matrix instead, bypassing that entry point, so
+# they have to do the flattening themselves. Without it, magick reports a
+# fully transparent pixel as the color name "transparent" rather than as
+# hex, and whether these images carry an alpha channel at all varies by
+# ImageMagick version - so unsanitized fixtures pass on one platform and
+# fail on another.
+retro_test_image <- function(matrix) {
+  magick::image_read(matrix) |>
+    magick::image_background("white", flatten = TRUE)
+}
+
 # Write a hex-color character matrix to a temp PNG and return its path.
 retro_test_png <- function(matrix) {
   path <- tempfile(fileext = ".png")
-  magick::image_read(matrix) |> magick::image_write(path)
+  retro_test_image(matrix) |> magick::image_write(path)
   path
 }
 
