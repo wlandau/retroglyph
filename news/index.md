@@ -18,8 +18,8 @@
   the helpers themselves covers every path. Output is unchanged for hex
   input.
 - Clarify in `retro_image_png()` that flattening onto white is what
-  makes a partially transparent source image reconstructable: the blend
-  a reader sees is the color to digitize, so compositing is not
+  makes a partially transparent source image tractable: the blend a
+  reader sees is the color to digitize, so compositing is not
   interchangeable with discarding the alpha channel.
 
 ## retroglyph 0.0.8
