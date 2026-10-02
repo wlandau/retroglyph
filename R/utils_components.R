@@ -26,6 +26,11 @@ retro_components_pixel_matrix <- function(image) {
 #'   The more frequent color is background; everything else is foreground.
 #'   This collapses near-background colors (light grays, faint grid lines)
 #'   into background, producing a clean binary mask.
+#' @details Drops the alpha channel before quantizing, via
+#'   [retro_color_opaque()], which explains why. Without it, some
+#'   `ImageMagick` builds return a single `"transparent"` color instead of
+#'   the two colors asked for, and every pixel then compares equal to the
+#'   detected background, yielding an all-`FALSE` mask.
 #' @param image A magick image object.
 #' @return Logical matrix (height x width), `TRUE` for foreground.
 #' @examples
@@ -36,13 +41,33 @@ retro_components_pixel_matrix <- function(image) {
 #'   image <- magick::image_read(pixel_matrix)
 #'   print(retroglyph:::retro_components_foreground_mask(image))
 retro_components_foreground_mask <- function(image) {
-  quantized <- magick::image_quantize(image, max = 2L, dither = FALSE)
+  quantized <- retro_components_quantize(image)
   raster <- magick::image_raster(quantized, tidy = FALSE)
   pixel_matrix <- as.matrix(raster)
   pixel_matrix[] <- retro_color_rgb(pixel_matrix)
   color_counts <- table(as.vector(pixel_matrix))
   background <- names(color_counts)[which.max(color_counts)]
   pixel_matrix != background
+}
+
+#' @title Quantize an image to 2 colors for foreground/background split
+#' @keywords internal
+#' @noRd
+#' @description Drops any alpha channel, then quantizes to exactly 2
+#'   colors with dithering disabled.
+#' @details Every 2-color quantization in the package goes through this
+#'   function, so the alpha-channel precaution in [retro_color_opaque()]
+#'   is applied in exactly one place rather than repeated at each call
+#'   site.
+#' @param image A magick image object.
+#' @return A magick image object with at most 2 colors and no alpha
+#'   channel.
+#' @examples
+#'   image <- magick::image_read(matrix(c("#ffffff", "#000000"), nrow = 1))
+#'   print(retroglyph:::retro_components_quantize(image))
+retro_components_quantize <- function(image) {
+  retro_color_opaque(image) |>
+    magick::image_quantize(max = 2L, dither = FALSE)
 }
 
 #' @title Determine background color from a foreground mask

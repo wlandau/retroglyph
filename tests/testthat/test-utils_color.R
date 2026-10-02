@@ -118,6 +118,57 @@ test_that("retro_color_rgb() survives a raster with transparent pixels", {
   expect_no_error(magick::image_read(raster))
 })
 
+test_that("retro_color_opaque() removes the alpha channel", {
+  image <- magick::image_read(matrix("#ffffffff", nrow = 2L, ncol = 2L))
+  expect_true(magick::image_info(image)$matte)
+  expect_false(magick::image_info(retro_color_opaque(image))$matte)
+})
+
+test_that("retro_color_opaque() leaves opaque pixel colors unchanged", {
+  # The whole premise of dropping the channel is that it is color-neutral
+  # on an already-flattened image, which is all that reaches a
+  # quantization step.
+  pixels <- matrix(
+    c("#ff0000ff", "#ffffffff", "#000000ff", "#0000ffff"),
+    nrow = 2L
+  )
+  image <- magick::image_read(pixels) |>
+    magick::image_background("white", flatten = TRUE)
+  before <- as.vector(magick::image_raster(image, tidy = FALSE))
+  after <- as.vector(magick::image_raster(
+    retro_color_opaque(image),
+    tidy = FALSE
+  ))
+  expect_equal(before, after)
+})
+
+test_that("retro_color_opaque() preserves a grayscale colorspace", {
+  # matte = FALSE is used rather than type = "TrueColor" precisely so
+  # that removing the channel does not also force the colorspace.
+  image <- magick::image_convert(
+    magick::image_read(matrix(c("#303030ff", "#c0c0c0ff"), nrow = 1L)),
+    type = "Grayscale"
+  )
+  expect_equal(
+    magick::image_info(retro_color_opaque(image))$colorspace,
+    magick::image_info(image)$colorspace
+  )
+})
+
+test_that("retro_color_opaque() makes quantization return the colors asked for", {
+  # The portability bug this guards: with an alpha channel still present,
+  # some ImageMagick builds return a single "transparent" color from a
+  # 2-color quantization.
+  pixels <- matrix("#ffffffff", nrow = 20L, ncol = 20L)
+  pixels[5:15, 10] <- "#000000ff"
+  image <- magick::image_read(pixels)
+  quantized <- retro_color_opaque(image) |>
+    magick::image_quantize(max = 2L, dither = FALSE)
+  colors <- unique(as.vector(magick::image_raster(quantized, tidy = FALSE)))
+  expect_equal(length(colors), 2L)
+  expect_false(any(colors == "transparent"))
+})
+
 test_that("retro_color_valid() accepts 6- and 8-char hex colors", {
   expect_true(retro_color_valid("#DC3030"))
   expect_true(retro_color_valid("#dc3030ff"))

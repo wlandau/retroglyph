@@ -4,14 +4,15 @@
 
 # Read a hex-color character matrix into an opaque magick image.
 #
-# The package itself only ever sees images that came through
-# retro_image_png(), which composites away the alpha channel. Tests build
-# images straight from a matrix instead, bypassing that entry point, so
-# they have to do the flattening themselves - a fixture that kept its
-# alpha channel would not represent what the pipeline actually receives.
+# Mirrors retro_image_png(), the pipeline's entry point: composite
+# transparency onto white, then drop the alpha channel. Tests build
+# images straight from a matrix and bypass that entry point, so they have
+# to do both steps themselves. retro_color_opaque() documents why the
+# second step is not redundant.
 retro_test_image <- function(matrix) {
   magick::image_read(matrix) |>
-    magick::image_background("white", flatten = TRUE)
+    magick::image_background("white", flatten = TRUE) |>
+    retro_color_opaque()
 }
 
 # Write a hex-color character matrix to a temp PNG and return its path.

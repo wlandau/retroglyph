@@ -146,7 +146,7 @@ retro_data_ocr <- function(
 #'   print(length(unique(as.vector(colors))) <= 2L)
 retro_ocr_quantize <- function(input) {
   image <- magick::image_read(input) |>
-    magick::image_quantize(max = 2L, dither = FALSE)
+    retro_components_quantize()
   output <- tempfile(fileext = ".png")
   magick::image_write(image, path = output)
   output

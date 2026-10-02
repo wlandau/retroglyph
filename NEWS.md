@@ -1,7 +1,7 @@
 # retroglyph 0.0.9
 
 * `retro_color_rgb()` and `retro_color_rgba()` now parse each color with `grDevices::col2rgb()` and re-format it with `grDevices::rgb()`, instead of slicing and concatenating the string. `magick::image_raster()` returns color specifications rather than guaranteed hex, and for a fully transparent pixel it returns the name `"transparent"`, which the old string handling turned into the invalid `"transpa"` and `"transpaff"`. The 0.0.8 fix addressed this by flattening at the entry point, but several internal steps build images from character matrices and never pass through `retro_image_png()`, so the error persisted on platforms whose `ImageMagick` build retains an alpha channel. Fixing the helpers themselves covers every path. Output is unchanged for hex input.
-* Clarify in `retro_image_png()` that flattening onto white is what makes a partially transparent source image reconstructable: the blend a reader sees is the color to digitize, so compositing is not interchangeable with discarding the alpha channel.
+* Clarify in `retro_image_png()` that flattening onto white is what makes a partially transparent source image tractable: the blend a reader sees is the color to digitize, so compositing is not interchangeable with discarding the alpha channel.
 
 # retroglyph 0.0.8
 

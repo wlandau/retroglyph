@@ -91,6 +91,43 @@ retro_color_format <- function(x, alpha) {
   tolower(hex)
 }
 
+#' @title Remove an image's alpha channel
+#' @keywords internal
+#' @noRd
+#' @description Return the image with any alpha channel removed, leaving
+#'   every pixel's color untouched.
+#' @details This is the package's single answer to a specific
+#'   `ImageMagick` portability hazard. Some builds return a single
+#'   `"transparent"` color from `magick::image_quantize()` when the input
+#'   still carries an alpha channel, even a fully opaque one, so a
+#'   request for 2 colors silently yields 1. Every pixel then compares
+#'   equal to the detected background and foreground detection collapses
+#'   to an all-`FALSE` mask. This surfaced as a Linux-only test failure
+#'   while the same code passed on Windows and macOS.
+#'
+#'   `magick::image_background(flatten = TRUE)` is not a substitute. It
+#'   composites transparency away, making every pixel opaque, but leaves
+#'   the channel itself in place, which is enough to trigger the hazard.
+#'   Flattening and dropping are complementary and both belong in the
+#'   pipeline: flattening decides *what color* a translucent pixel
+#'   becomes, and this decides whether the channel survives to confuse
+#'   `magick` later. See [retro_image_png()], which does both at the
+#'   entry point.
+#'
+#'   Dropping the channel is color-neutral on an already-flattened image,
+#'   which is the only kind that reaches a quantization step here.
+#'   `matte = FALSE` is preferred over `type = "TrueColor"` because it
+#'   speaks only to the alpha channel and leaves the colorspace alone, so
+#'   a grayscale image stays grayscale.
+#' @param image A magick image object.
+#' @return The same image with no alpha channel.
+#' @examples
+#'   image <- magick::image_read(matrix("#ffffffff", nrow = 1))
+#'   retroglyph:::retro_color_opaque(image)
+retro_color_opaque <- function(image) {
+  magick::image_convert(image, matte = FALSE)
+}
+
 #' @title Test whether strings are valid hex colors
 #' @keywords internal
 #' @noRd

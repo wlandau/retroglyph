@@ -676,11 +676,7 @@ retro_panel_line_pad <- function(input, endpoints, median_height) {
     mask = TRUE,
     initial = FALSE
   )
-  quantized <- magick::image_quantize(
-    magick::image_read(masked),
-    max = 2L,
-    dither = FALSE
-  )
+  quantized <- retro_components_quantize(magick::image_read(masked))
   raster <- magick::image_raster(quantized, tidy = FALSE)
   pixel_matrix <- as.matrix(raster)
   pixel_matrix[] <- retro_color_rgb(pixel_matrix)

@@ -139,7 +139,7 @@ retro_image_mask <- function(
 retro_background_color <- function(raster, quantize = FALSE) {
   if (quantize) {
     raster <- magick::image_read(raster) |>
-      magick::image_quantize(max = 2L, dither = FALSE) |>
+      retro_components_quantize() |>
       magick::image_raster(tidy = FALSE)
   }
   colors <- sort(table(raster), decreasing = TRUE)

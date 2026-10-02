@@ -24,6 +24,12 @@
 #'   pixel the same value as the white background it is drawn over, so
 #'   background detection counts it as background rather than as a
 #'   distinct curve color.
+#'
+#'   [retro_color_opaque()] then removes the alpha channel that
+#'   `magick::image_background()` leaves behind, so that no later
+#'   quantization step has to care whether the channel is present. That
+#'   function documents the `ImageMagick` behavior that makes this
+#'   necessary.
 #' @return `NULL` (invisibly). Called for its side effect of writing
 #'   an image file.
 #' @param input Character scalar, path to the source image file.
@@ -44,6 +50,7 @@ retro_image_png <- function(input, output, density = 300) {
   )
   magick::image_read(input, density = density) |>
     magick::image_background("white", flatten = TRUE) |>
+    retro_color_opaque() |>
     magick::image_write(path = output, format = "png")
   invisible(NULL)
 }

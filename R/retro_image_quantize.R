@@ -6,6 +6,13 @@
 #'   The output is a faithful rendering of the input with fewer, flatter
 #'   colors, which makes it easier for the model to read colors by eye than
 #'   the full-color original.
+#' @details Drops any alpha channel first, via [retro_color_opaque()],
+#'   which explains why `magick::image_quantize()` needs an opaque input
+#'   to behave the same way on every `ImageMagick` build. This previously
+#'   relied on `magick::image_convert(type = "TrueColor")`, which also
+#'   removes the channel but as a side effect of forcing the colorspace;
+#'   naming the intent keeps every quantization in the package using one
+#'   mechanism.
 #' @return `NULL` (invisibly). Called for its side effect of writing
 #'   an image file.
 #' @param input Character scalar, path to the source image file.
@@ -35,7 +42,7 @@ retro_image_quantize <- function(input, output, n_colors = 256L) {
       n_colors >= 1L
   )
   quantized <- magick::image_read(input) |>
-    magick::image_convert(type = "TrueColor") |>
+    retro_color_opaque() |>
     magick::image_quantize(max = as.integer(n_colors), dither = FALSE)
   magick::image_write(quantized, path = output)
   invisible(NULL)
