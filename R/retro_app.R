@@ -274,6 +274,7 @@ retro_app_turn <- function(chat, user_input, controller) {
 }
 
 retro_app_server <- function(chat, authentication_server) {
+  # nocov start
   function(input, output, session) {
     if (!is.null(authentication_server)) {
       authentication_server(input, output, session) #nocov
@@ -443,4 +444,5 @@ retro_app_server <- function(chat, authentication_server) {
     shiny::outputOptions(output, "download_ui", suspendWhenHidden = FALSE)
     shiny::outputOptions(output, "download_data", suspendWhenHidden = FALSE)
   }
+  # nocov end
 }

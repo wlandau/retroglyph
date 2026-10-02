@@ -99,3 +99,9 @@ test_that("retro_app() reconstructs simulation.png via replay chat", {
   expect_true(all(downloaded$time >= 0))
   expect_true(all(downloaded$status %in% c(0, 1)))
 })
+
+test_that("retro_app_server() generates a server function", {
+  skip_on_cran()
+  result <- retro_app_server("chat", "auth")
+  expect_true(is.function(result))
+})
