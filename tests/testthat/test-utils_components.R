@@ -3,6 +3,7 @@ test_that("retro_components_foreground_mask() returns a logical matrix", {
   matrix[10:40, 15] <- "#000000ff"
   image <- retro_test_image(matrix)
   result <- retro_components_foreground_mask(image)
+  print(result)
   expect_true(is.logical(result))
   expect_equal(dim(result), c(50L, 50L))
   expect_true(all(result[10:40, 15]))
@@ -14,6 +15,7 @@ test_that("retro_components_foreground_mask() works with dark background", {
   matrix[10:40, 15] <- "#ffffffff"
   image <- retro_test_image(matrix)
   result <- retro_components_foreground_mask(image)
+  print(result)
   expect_true(is.logical(result))
   expect_true(all(result[10:40, 15]))
   expect_false(result[1, 1])
