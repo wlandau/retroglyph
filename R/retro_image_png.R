@@ -12,16 +12,18 @@
 #'   `density` argument controls the rasterization resolution; it has no
 #'   effect on inputs that are already rasters.
 #'
-#'   Flattening is what makes the rest of the pipeline safe to write in
-#'   terms of hex colors. `magick::image_raster()` reports a fully
-#'   transparent pixel as the color name `"transparent"` rather than as
-#'   hex, and which images carry an alpha channel varies by `ImageMagick`
-#'   version. Removing the alpha channel once, here, means no downstream
-#'   step ever sees a non-hex pixel value. Converting the colorspace does
-#'   not help; only dropping the alpha channel does. Flattening also gives
-#'   a transparent pixel the same value as the white background it is
-#'   drawn over, so background detection counts it as background rather
-#'   than as a distinct curve color.
+#'   Flattening is what makes a partially transparent source image
+#'   reconstructable. A curve drawn at partial opacity - common where
+#'   confidence bands or overplotted series are involved - is a blend of
+#'   the curve color and whatever sits behind it, and the blend is the
+#'   color a reader actually sees. Compositing onto white records that
+#'   blend. Merely dropping the alpha channel instead would record the
+#'   undiluted curve color, which never appeared in the figure, and the
+#'   color-keyed series matching in [retro_do_distill()] would key off a
+#'   value that is not there. Flattening also gives a fully transparent
+#'   pixel the same value as the white background it is drawn over, so
+#'   background detection counts it as background rather than as a
+#'   distinct curve color.
 #' @return `NULL` (invisibly). Called for its side effect of writing
 #'   an image file.
 #' @param input Character scalar, path to the source image file.

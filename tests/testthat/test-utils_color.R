@@ -60,6 +60,64 @@ test_that("retro_color_rgb() and retro_color_rgba() are inverses", {
   expect_equal(retro_color_rgba(retro_color_rgb(eight_char)), eight_char)
 })
 
+test_that("retro_color_rgb() converts color names to hex", {
+  # magick::image_raster() reports a fully transparent pixel as the name
+  # "transparent". Slicing it to 7 characters used to give "transpa", an
+  # invalid color name that stopped the pipeline downstream.
+  expect_equal(retro_color_rgb("transparent"), "#ffffff")
+  expect_equal(retro_color_rgb("white"), "#ffffff")
+  expect_equal(retro_color_rgb("black"), "#000000")
+})
+
+test_that("retro_color_rgba() converts color names to hex", {
+  # Appending "ff" to "transparent" used to give the invalid "transpaff".
+  expect_equal(retro_color_rgba("transparent"), "#ffffff00")
+  expect_equal(retro_color_rgba("white"), "#ffffffff")
+})
+
+test_that("retro_color_rgba() preserves a partial alpha channel", {
+  expect_equal(retro_color_rgba("#ff000080"), "#ff000080")
+  expect_equal(retro_color_rgba("#00000000"), "#00000000")
+})
+
+test_that("retro_color_rgb() drops a partial alpha channel", {
+  expect_equal(retro_color_rgb("#ff000080"), "#ff0000")
+})
+
+test_that("retro_color_rgb() and retro_color_rgba() accept empty input", {
+  expect_equal(retro_color_rgb(character(0L)), character(0L))
+  expect_equal(retro_color_rgba(character(0L)), character(0L))
+})
+
+test_that("retro_color_rgb() converts a pixel matrix in caller order", {
+  # The matrix callers assign back with pixel_matrix[] <- , which keeps
+  # the dimensions, so the helper only owes them values in the same order.
+  input <- matrix(
+    c("#dc3030ff", "#3030a0ff", "#ffffffff", "#000000ff"),
+    nrow = 2L
+  )
+  result <- input
+  result[] <- retro_color_rgb(input)
+  expect_equal(dim(result), c(2L, 2L))
+  expect_equal(result[2L, 1L], "#3030a0")
+  expect_equal(result[1L, 2L], "#ffffff")
+})
+
+test_that("retro_color_rgb() survives a raster with transparent pixels", {
+  # The regression this guards: internal steps such as retro_image_mask()
+  # build images from character matrices and never pass through
+  # retro_image_png(), so they can meet a raster that still has an alpha
+  # channel. Writing the normalized colors back must not error. Assigning
+  # with raster[] <- mirrors how those callers use the result.
+  raster <- magick::image_raster(
+    magick::image_blank(10L, 10L, color = "transparent"),
+    tidy = FALSE
+  )
+  expect_equal(unique(retro_color_rgb(raster)), "#ffffff")
+  raster[] <- retro_color_rgba(retro_color_rgb(raster))
+  expect_no_error(magick::image_read(raster))
+})
+
 test_that("retro_color_valid() accepts 6- and 8-char hex colors", {
   expect_true(retro_color_valid("#DC3030"))
   expect_true(retro_color_valid("#dc3030ff"))

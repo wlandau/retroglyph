@@ -5,13 +5,10 @@
 # Read a hex-color character matrix into an opaque magick image.
 #
 # The package itself only ever sees images that came through
-# retro_image_png(), which flattens away the alpha channel. Tests build
+# retro_image_png(), which composites away the alpha channel. Tests build
 # images straight from a matrix instead, bypassing that entry point, so
-# they have to do the flattening themselves. Without it, magick reports a
-# fully transparent pixel as the color name "transparent" rather than as
-# hex, and whether these images carry an alpha channel at all varies by
-# ImageMagick version - so unsanitized fixtures pass on one platform and
-# fail on another.
+# they have to do the flattening themselves - a fixture that kept its
+# alpha channel would not represent what the pipeline actually receives.
 retro_test_image <- function(matrix) {
   magick::image_read(matrix) |>
     magick::image_background("white", flatten = TRUE)
