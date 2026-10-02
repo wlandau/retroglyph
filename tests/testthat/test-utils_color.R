@@ -118,10 +118,22 @@ test_that("retro_color_rgb() survives a raster with transparent pixels", {
   expect_no_error(magick::image_read(raster))
 })
 
-test_that("retro_color_opaque() removes the alpha channel", {
-  image <- magick::image_read(matrix("#ffffffff", nrow = 2L, ncol = 2L))
-  expect_true(magick::image_info(image)$matte)
-  expect_false(magick::image_info(retro_color_opaque(image))$matte)
+test_that("retro_color_opaque() makes quantization ignore transparency", {
+  # Asserts behavior, not the matte flag. image_info()$matte reports
+  # whether an alpha channel is present, and ImageMagick builds disagree
+  # about whether a conversion that makes an image fully opaque also
+  # clears the flag - it stayed TRUE on Linux CI and FALSE on macOS for
+  # the same call. What the pipeline depends on is that quantization
+  # returns the colors asked for rather than a single "transparent", so
+  # test that instead.
+  pixels <- matrix("#ffffffff", nrow = 20L, ncol = 20L)
+  pixels[5:15, 10] <- "#000000ff"
+  image <- magick::image_read(pixels)
+  quantized <- retro_color_opaque(image) |>
+    magick::image_quantize(max = 2L, dither = FALSE)
+  colors <- unique(as.vector(magick::image_raster(quantized, tidy = FALSE)))
+  expect_equal(length(colors), 2L)
+  expect_false(any(colors == "transparent"))
 })
 
 test_that("retro_color_opaque() leaves opaque pixel colors unchanged", {
@@ -153,20 +165,6 @@ test_that("retro_color_opaque() preserves a grayscale colorspace", {
     magick::image_info(retro_color_opaque(image))$colorspace,
     magick::image_info(image)$colorspace
   )
-})
-
-test_that("retro_color_opaque() makes quantization return the colors asked for", {
-  # The portability bug this guards: with an alpha channel still present,
-  # some ImageMagick builds return a single "transparent" color from a
-  # 2-color quantization.
-  pixels <- matrix("#ffffffff", nrow = 20L, ncol = 20L)
-  pixels[5:15, 10] <- "#000000ff"
-  image <- magick::image_read(pixels)
-  quantized <- retro_color_opaque(image) |>
-    magick::image_quantize(max = 2L, dither = FALSE)
-  colors <- unique(as.vector(magick::image_raster(quantized, tidy = FALSE)))
-  expect_equal(length(colors), 2L)
-  expect_false(any(colors == "transparent"))
 })
 
 test_that("retro_color_valid() accepts 6- and 8-char hex colors", {
