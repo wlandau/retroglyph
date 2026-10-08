@@ -203,9 +203,12 @@ to derive the Kaplan-Meier step function, then redraws it on a blank
 canvas with the same axes as the original image. After it redraws all
 the curves and axes, it launches an HTML widget to compare the resulting
 reconstructed image against the target image.[^2] If the curves in the
-two figures match, then the reconstruction was successful. Matches are
-generally better for denser curves with more points, and worse for
-sparse curves with few points[^3].
+two figures match, then the reconstruction was successful.
+`compare(data = "censoring")` refits the same curves but draws them one
+pixel wide with a short vertical tick at every reconstructed censoring
+time, so the censoring marks can be checked against the ones in the
+source figure.[^3] Matches are generally better for denser curves with
+more points, and worse for sparse curves with few points[^4].
 
 ``` r
 
@@ -424,7 +427,7 @@ colors
     of the source with set-of-mark labels, a technique called
     [set-of-mark prompting](https://arxiv.org/abs/2310.11441). The
     [`tesseract`](http://docs.ropensci.org/tesseract/) package uses OCR
-    to detect the positions of numbers in the image[^4], and then the
+    to detect the positions of numbers in the image[^5], and then the
     [`magick`](http://docs.ropensci.org/magick/) package marks those
     numbers with letter labels and bounding boxes. As soon as it sees
     the source image, the model checks whether it has a risk table (see
@@ -509,7 +512,7 @@ curves.
       - **Line centering**: Finally, to counteract bias from the line
         width, a light touch of image morphology tweaks local regions of
         the line to more accurately trace the middle of the original
-        curve[^5]. Whereas the Dijkstra’s path tends to “hug the turns”
+        curve[^6]. Whereas the Dijkstra’s path tends to “hug the turns”
         of the foreground mask of Kaplan-Meier ink, the line centering
         step shifts the path to more accurately trace the middle of the
         original curve. ![A magnified crop of the simulated image at a
@@ -634,6 +637,8 @@ Kaplan-Meier Plots*. <https://arxiv.org/abs/2509.18141>.
     Use `agent$compare(data = "trace")` to check the pixel trace against
     the source image, and use `agent$compare(data = "survival")` to
     check the reconstructed survival data against the source image.
+    `agent$compare(data = "censoring")` checks the reconstructed
+    censoring times against the source image.
 
 [^2]: `compare(data = "trace")` is similar, but it redraws the upstream
     pixel trace instead of the downstream survival data. If there are
@@ -642,15 +647,19 @@ Kaplan-Meier Plots*. <https://arxiv.org/abs/2509.18141>.
     up in the trace) versus problems due to `IPDfromKM`, which only
     affect the downstream survival data.
 
-[^3]: This may be an inherent limitation of the algorithm by Guyot et
+[^3]: The thinning is what makes the ticks legible: a tick a couple of
+    pixels tall disappears inside a curve drawn at the source figure’s
+    own line width.
+
+[^4]: This may be an inherent limitation of the algorithm by Guyot et
     al. (2012) in the
     [`IPDfromKM`](https://CRAN.R-project.org/package=IPDfromKM) R
     package, which is responsible for reconstructing patient-level
     survival data from a Kaplan-Meier pixel trace and its corresponding
     entries in the risk table.
 
-[^4]: [`tesseract`](http://docs.ropensci.org/tesseract/) passes on the
+[^5]: [`tesseract`](http://docs.ropensci.org/tesseract/) passes on the
     recognized text at those positions to the language model, and then
     the latter makes the final judgment call on what the numbers are.
 
-[^5]: See `retroglyph:::retro_path_claim_pixels()`.
+[^6]: See `retroglyph:::retro_path_claim_pixels()`.

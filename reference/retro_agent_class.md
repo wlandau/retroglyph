@@ -425,15 +425,17 @@ plus a final \`"total"\` row.
 
 Visually compare the source image against a freshly generated
 impression, with axes drawn back in and one series brought to the front.
-Two sources are available for the impression (see the \`data\`
+Three sources are available for the impression (see the \`data\`
 argument): the reconstructed survival data (\`state\$data_survival\`)
 refit to a Kaplan-Meier curve per series, which validates the thing the
 package actually exists to produce rather than the raw digitized pixels;
-or the raw digitized trace (\`state\$data_scaled\`) before
-reconstruction, which isolates whether a disagreement traces back to
-retroglyph's own digitization or to \`IPDfromKM\`'s reconstruction. Each
-series is drawn out to its own last reconstructed observation, so arms
-with shorter follow-up end earlier in the impression than arms with
+the same reconstructed data drawn wire-thin with censoring tick marks,
+which checks the reconstructed censoring times against the ones in the
+source figure; or the raw digitized trace (\`state\$data_scaled\`)
+before reconstruction, which isolates whether a disagreement traces back
+to retroglyph's own digitization or to \`IPDfromKM\`'s reconstruction.
+Each series is drawn out to its own last reconstructed observation, so
+arms with shorter follow-up end earlier in the impression than arms with
 longer follow-up, exactly as they do in the source figure. Assumes
 \`reconstruct()\` has already completed successfully.
 
@@ -452,10 +454,13 @@ longer follow-up, exactly as they do in the source figure. Assumes
 
 - `data`:
 
-  Character scalar, either \`"survival"\` to render the reconstructed
+  Character scalar, one of \`"survival"\` to render the reconstructed
   survival data (\`state\$data_survival\`) refit to a Kaplan-Meier curve
-  (see \[retro_image_layer_survival()\]), or \`"trace"\` to render the
-  raw digitized trace (\`state\$data_scaled\`) with no refit (see
+  (see \[retro_image_layer_survival()\]), \`"censoring"\` to render
+  those same curves one pixel wide with a vertical tick mark at every
+  reconstructed censoring time (the \`censoring = TRUE\` mode of
+  \[retro_image_layer_survival()\]), or \`"trace"\` to render the raw
+  digitized trace (\`state\$data_scaled\`) with no refit (see
   \[retro_image_layer_trace()\]) - useful for telling apart a retroglyph
   digitization problem from an \`IPDfromKM\` reconstruction problem.
 
@@ -510,9 +515,9 @@ already completed successfully.
 
 - `data`:
 
-  Character scalar, either \`"survival"\` or \`"trace"\`, forwarded to
-  \[retro_agent_class\]\$compare() for every legend row - see its
-  \`data\` argument.
+  Character scalar, one of \`"survival"\`, \`"censoring"\`, or
+  \`"trace"\`, forwarded to \[retro_agent_class\]\$compare() for every
+  legend row - see its \`data\` argument.
 
 - `probabilities`:
 
