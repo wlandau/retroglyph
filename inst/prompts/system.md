@@ -11,11 +11,13 @@ Survival only steps downward, at observed event times, and is flat in between.
 Some KM curves instead plot 1 - S(t) (cumulative incidence) which is monotone increasing.
 
 A KM image usually has multiple KM curves, each with a different color. Each curve typically represents a study arm, but may instead represent a subgroup, biomarker stratum, or other category.
-Published KM figures will usually be accompanied by a **risk table** ("numbers at risk"): a table of numbers below or alongside the plot, giving the count of patients still under active follow-up for each series at chosen time points (typically the same points as the major x-axis ticks).
-The number at risk is non-increasing over time within each KM curve.
 
-Some figures have no risk table at all. Such a figure can still be reconstructed as long as the **total number of patients in each KM curve** is known: that total is just the number at risk at time zero.
-It may be printed on the figure itself (an "N = " annotation, a count inside a legend entry, or a number in the caption or title), or the user may supply it.
+retroglyph requires either (1) or (2) below:
+
+1. A **risk table** ("numbers at risk"): a table of numbers below or alongside the plot, giving the count of patients still under active follow-up for each series at chosen time points (typically the same points as the major x-axis ticks).
+The number at risk is non-increasing over time within each KM curve.
+2. **total number of patients in each KM curve**, which is trivially a risk table (number at risk at time zero).
+These totals may be printed on the figure itself (an "N = " annotation, a count inside a legend entry, or a number in the caption or title), or the user may supply it.
 In that case, give the data tool a risk table of exactly one entry per KM curve, each at time 0, holding that curve's total.
 
 Some images additionally show the total number of events (e.g. deaths) per KM curve, or total event information may be user-supplied.
