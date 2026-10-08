@@ -298,7 +298,11 @@ retro_app_server <- function(chat, authentication_server) {
       shiny::radioButtons(
         "select_data",
         label = "Data for the reconstructed (new) image",
-        choices = c("Reconstructed survival data", "Recaptured pixel trace"),
+        choices = c(
+          "Reconstructed survival data",
+          "Reconstructed censoring times",
+          "Recaptured pixel trace"
+        ),
         selected = "Reconstructed survival data"
       )
     })
@@ -352,6 +356,7 @@ retro_app_server <- function(chat, authentication_server) {
         data = switch(
           input$select_data,
           "Reconstructed survival data" = "survival",
+          "Reconstructed censoring times" = "censoring",
           "Recaptured pixel trace" = "trace"
         )
       )

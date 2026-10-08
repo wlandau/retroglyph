@@ -17,6 +17,15 @@
 #'   with the source image traces back to retroglyph's own digitization or
 #'   to `IPDfromKM`'s reconstruction.
 #'
+#'   With `censoring = TRUE` the same curves are drawn one pixel wide
+#'   instead of dilated to `line_width`, and a short vertical tick marks
+#'   every reconstructed censoring time (see
+#'   [retro_layer_censoring_data()]).
+#'   The thinning is what makes the ticks checkable at all: a tick a couple
+#'   of pixels tall vanishes inside a line several pixels thick, so the
+#'   dilated rendering cannot show whether the reconstructed censoring
+#'   times line up with the ones in the source figure.
+#'
 #'   Every scalar this function needs is a plain argument — it never reads
 #'   `line_width`/`max_y`/`increasing` off a tibble itself. The caller (e.g.
 #'   [retro_agent_class]$compare()) pulls each out of whichever tibble
@@ -47,6 +56,10 @@
 #' @param increasing Logical scalar, `TRUE` if the plot reads as cumulative
 #'   incidence (rising over time) rather than survival (falling over
 #'   time).
+#' @param censoring Logical scalar. `FALSE` (default) draws the curves
+#'   dilated to `line_width` and marks no censoring. `TRUE` draws them one
+#'   pixel wide and adds a vertical tick, 2 pixels up and 2 pixels down,
+#'   at every reconstructed censoring time.
 #' @examples
 #'   data <- tibble::tibble(
 #'     series = rep("Placebo", 6),
@@ -90,7 +103,8 @@ retro_image_layer_survival <- function(
   height,
   line_width,
   max_y,
-  increasing
+  increasing,
+  censoring = FALSE
 ) {
   stopifnot(
     "data must be a tibble with columns series, time, status" = inherits(
@@ -136,7 +150,12 @@ retro_image_layer_survival <- function(
       increasing
     ) &&
       length(increasing) == 1L &&
-      !is.na(increasing)
+      !is.na(increasing),
+    "censoring must be a single non-missing logical" = is.logical(
+      censoring
+    ) &&
+      length(censoring) == 1L &&
+      !is.na(censoring)
   )
   legend_colors <- retro_color_rgb(legend$color)
   layers <- retro_color_rgb(layers)
@@ -152,7 +171,13 @@ retro_image_layer_survival <- function(
   )
   width <- as.integer(width)
   height <- as.integer(height)
-  half_width <- max(0L, as.integer(floor(line_width / 2)))
+  # The censoring view draws wire-thin so the ticks stay visible: a tick
+  # 2 pixels up and down is swallowed whole by a dilated line.
+  half_width <- if (censoring) {
+    0L
+  } else {
+    max(0L, as.integer(floor(line_width / 2)))
+  }
   # retro_scale_calibration() normally fits pixel -> data-value; swapping
   # which argument is which fits the inverse, data-value -> pixel, directly.
   x_calibration <- retro_scale_calibration(
@@ -169,24 +194,33 @@ retro_image_layer_survival <- function(
   for (color in rev(layers)) {
     series_name <- legend$series[match(color, legend_colors)]
     ipd <- data[data$series == series_name, , drop = FALSE]
-    vertices <- retro_layer_steps(ipd, max_y, increasing)
-    pixel_x <- as.integer(round(
-      x_calibration$slope * vertices$x + x_calibration$intercept
-    ))
-    pixel_y <- as.integer(round(
-      y_calibration$slope * vertices$y + y_calibration$intercept
-    ))
-    for (index in seq_len(length(pixel_x) - 1L)) {
-      segment <- retro_layer_segment(
-        pixel_x[index],
-        pixel_y[index],
-        pixel_x[index + 1L],
-        pixel_y[index + 1L],
-        half_width,
-        width,
-        height
+    pixel_matrix <- retro_layer_survival_draw(
+      pixel_matrix = pixel_matrix,
+      ipd = ipd,
+      color = color,
+      x_calibration = x_calibration,
+      y_calibration = y_calibration,
+      half_width = half_width,
+      width = width,
+      height = height,
+      max_y = max_y,
+      increasing = increasing
+    )
+    # Ticks are painted inside the same layer loop as the curve, so a
+    # foreground series' ticks overwrite a background series' curve exactly
+    # as its own curve does.
+    if (censoring) {
+      pixel_matrix <- retro_layer_censoring_draw(
+        pixel_matrix = pixel_matrix,
+        ipd = ipd,
+        color = color,
+        x_calibration = x_calibration,
+        y_calibration = y_calibration,
+        width = width,
+        height = height,
+        max_y = max_y,
+        increasing = increasing
       )
-      pixel_matrix[cbind(segment$y, segment$x)] <- color
     }
   }
   magick::image_read(pixel_matrix) |>
@@ -210,7 +244,7 @@ retro_image_layer_survival <- function(
 #'   `ipd`, so it belongs to this one series and cannot pick up another
 #'   series' follow-up: arms whose curves genuinely end early are drawn
 #'   ending early. The whole sequence can then be rasterized as
-#'   axis-aligned pixel runs by [retro_image_layer_survival()].
+#'   axis-aligned pixel runs by [retro_layer_survival_draw()].
 #' @return A data frame with columns `x` (time) and `y` (value on the
 #'   plot's own scale), one row per vertex, in drawing order.
 #' @param ipd A tibble with columns `time`, `status` — this series' rows
@@ -259,6 +293,203 @@ retro_layer_steps <- function(ipd, max_y, increasing) {
   do.call(rbind, vertices)
 }
 
+#' @title Locate one series's censoring tick marks for plotting
+#' @keywords internal
+#' @noRd
+#' @description Refits a single series' Kaplan-Meier curve from its
+#'   reconstructed individual patient data and returns the point on the
+#'   curve at every time where at least one patient was censored, expressed
+#'   on the plot's own scale and orientation (`max_y`/`increasing`) the same
+#'   way [retro_layer_steps()] expresses the curve itself. Each point is the
+#'   center of a vertical tick mark that [retro_layer_censoring_draw()]
+#'   paints, which is where
+#'   `survival::plot.survfit(mark.time = TRUE)` would put one too. Times
+#'   where only events occurred are not ticked.
+#' @return A data frame with columns `x` (censoring time) and `y` (curve
+#'   value on the plot's own scale), one row per censoring time in
+#'   ascending order, and zero rows if no patient in `ipd` was censored.
+#' @param ipd A tibble with columns `time`, `status` — this series' rows
+#'   from `data` in [retro_image_layer_survival()].
+#' @param max_y Numeric scalar, the y-axis scale: `1` for a 0-1 proportion,
+#'   `100` for a 0-100 percentage.
+#' @param increasing Logical scalar, `TRUE` if the plot reads as cumulative
+#'   incidence (rising over time) rather than survival (falling over
+#'   time).
+#' @examples
+#'   ipd <- tibble::tibble(
+#'     time = c(1, 2, 3, 4, 5, 6),
+#'     status = c(1, 0, 1, 0, 1, 0)
+#'   )
+#'   retroglyph:::retro_layer_censoring_data(
+#'     ipd,
+#'     max_y = 1,
+#'     increasing = FALSE
+#'   )
+retro_layer_censoring_data <- function(ipd, max_y, increasing) {
+  fit <- survival::survfit(survival::Surv(time, status) ~ 1, data = ipd)
+  censored <- fit$n.censor > 0
+  # fit$surv is the post-jump value at each time, so at a censoring time it
+  # is already the height of the flat run the tick sits on.
+  value <- fit$surv[censored]
+  data.frame(
+    x = fit$time[censored],
+    y = if (increasing) max_y - max_y * value else max_y * value
+  )
+}
+
+#' @title Paint one series's Kaplan-Meier step function onto the canvas
+#' @keywords internal
+#' @noRd
+#' @description Takes the vertex sequence [retro_layer_steps()] builds for
+#'   one series, maps it from data space into pixel space through the two
+#'   per-axis calibrations, and paints every segment between consecutive
+#'   vertices with [retro_layer_segment()]. One call paints one layer of
+#'   [retro_image_layer_survival()]'s layer loop, which calls this once per
+#'   color from lowest precedence to highest, so the returned matrix is the
+#'   input matrix with this series' curve overwriting whatever was beneath
+#'   it.
+#' @return `pixel_matrix` with this series' curve painted in `color`.
+#' @param pixel_matrix Character matrix of hex colors, `height` by `width`,
+#'   the canvas painted so far.
+#' @param ipd A tibble with columns `time`, `status` — this series' rows
+#'   from `data` in [retro_image_layer_survival()].
+#' @param color Character scalar, hex color to paint this series in.
+#' @param x_calibration,y_calibration Lists with numeric `slope` and
+#'   `intercept`, the data-value to pixel maps from
+#'   [retro_scale_calibration()].
+#' @param half_width Integer scalar, pixels to extend on either side of the
+#'   curve: `0L` for the wire-thin censoring view, `floor(line_width / 2)`
+#'   otherwise.
+#' @param width,height Integer scalars, canvas bounds.
+#' @param max_y Numeric scalar, the y-axis scale: `1` for a 0-1 proportion,
+#'   `100` for a 0-100 percentage.
+#' @param increasing Logical scalar, `TRUE` if the plot reads as cumulative
+#'   incidence (rising over time) rather than survival (falling over
+#'   time).
+#' @examples
+#'   ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+#'   calibration <- list(slope = 1, intercept = 1)
+#'   retroglyph:::retro_layer_survival_draw(
+#'     pixel_matrix = matrix("#ffffff", nrow = 20L, ncol = 20L),
+#'     ipd = ipd,
+#'     color = "#dc3030",
+#'     x_calibration = calibration,
+#'     y_calibration = calibration,
+#'     half_width = 0L,
+#'     width = 20L,
+#'     height = 20L,
+#'     max_y = 1,
+#'     increasing = FALSE
+#'   )
+retro_layer_survival_draw <- function(
+  pixel_matrix,
+  ipd,
+  color,
+  x_calibration,
+  y_calibration,
+  half_width,
+  width,
+  height,
+  max_y,
+  increasing
+) {
+  vertices <- retro_layer_steps(ipd, max_y, increasing)
+  pixel_x <- as.integer(round(
+    x_calibration$slope * vertices$x + x_calibration$intercept
+  ))
+  pixel_y <- as.integer(round(
+    y_calibration$slope * vertices$y + y_calibration$intercept
+  ))
+  for (index in seq_len(length(pixel_x) - 1L)) {
+    segment <- retro_layer_segment(
+      pixel_x[index],
+      pixel_y[index],
+      pixel_x[index + 1L],
+      pixel_y[index + 1L],
+      half_width,
+      width,
+      height
+    )
+    pixel_matrix[cbind(segment$y, segment$x)] <- color
+  }
+  pixel_matrix
+}
+
+#' @title Paint one series's censoring tick marks onto the canvas
+#' @keywords internal
+#' @noRd
+#' @description Takes the censoring points [retro_layer_censoring_data()]
+#'   finds for one series, maps them from data space into pixel space
+#'   through the two per-axis calibrations, and paints each as a vertical
+#'   tick 2 pixels up and 2 pixels down from the curve, 1 pixel wide, with
+#'   [retro_layer_segment()]. The sibling of
+#'   [retro_layer_survival_draw()], called right after it on the same layer
+#'   of [retro_image_layer_survival()]'s layer loop, so a foreground series'
+#'   ticks overwrite a background series' curve exactly as its own curve
+#'   does. A series with no censored patients leaves the canvas untouched.
+#' @return `pixel_matrix` with this series' censoring ticks painted in
+#'   `color`.
+#' @param pixel_matrix Character matrix of hex colors, `height` by `width`,
+#'   the canvas painted so far — including this series' curve.
+#' @param ipd A tibble with columns `time`, `status` — this series' rows
+#'   from `data` in [retro_image_layer_survival()].
+#' @param color Character scalar, hex color to paint this series' ticks in.
+#' @param x_calibration,y_calibration Lists with numeric `slope` and
+#'   `intercept`, the data-value to pixel maps from
+#'   [retro_scale_calibration()].
+#' @param width,height Integer scalars, canvas bounds.
+#' @param max_y Numeric scalar, the y-axis scale: `1` for a 0-1 proportion,
+#'   `100` for a 0-100 percentage.
+#' @param increasing Logical scalar, `TRUE` if the plot reads as cumulative
+#'   incidence (rising over time) rather than survival (falling over
+#'   time).
+#' @examples
+#'   ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+#'   calibration <- list(slope = 1, intercept = 1)
+#'   retroglyph:::retro_layer_censoring_draw(
+#'     pixel_matrix = matrix("#ffffff", nrow = 20L, ncol = 20L),
+#'     ipd = ipd,
+#'     color = "#dc3030",
+#'     x_calibration = calibration,
+#'     y_calibration = calibration,
+#'     width = 20L,
+#'     height = 20L,
+#'     max_y = 1,
+#'     increasing = FALSE
+#'   )
+retro_layer_censoring_draw <- function(
+  pixel_matrix,
+  ipd,
+  color,
+  x_calibration,
+  y_calibration,
+  width,
+  height,
+  max_y,
+  increasing
+) {
+  ticks <- retro_layer_censoring_data(ipd, max_y, increasing)
+  tick_x <- as.integer(round(
+    x_calibration$slope * ticks$x + x_calibration$intercept
+  ))
+  tick_y <- as.integer(round(
+    y_calibration$slope * ticks$y + y_calibration$intercept
+  ))
+  for (index in seq_along(tick_x)) {
+    segment <- retro_layer_segment(
+      tick_x[index],
+      tick_y[index] - 2L,
+      tick_x[index],
+      tick_y[index] + 2L,
+      0L,
+      width,
+      height
+    )
+    pixel_matrix[cbind(segment$y, segment$x)] <- color
+  }
+  pixel_matrix
+}
+
 #' @title Pixel coordinates for one axis-aligned curve segment
 #' @keywords internal
 #' @noRd
@@ -270,8 +501,8 @@ retro_layer_steps <- function(ipd, max_y, increasing) {
 #'   segment in data space (see [retro_layer_steps()], or the already
 #'   axis-aligned trace in [retro_image_layer_trace()]) stays horizontal or
 #'   vertical in pixel space too, so no general line-drawing algorithm is
-#'   needed. Shared by [retro_image_layer_survival()] and
-#'   [retro_image_layer_trace()].
+#'   needed. Shared by [retro_layer_survival_draw()],
+#'   [retro_layer_censoring_draw()], and [retro_image_layer_trace()].
 #' @param x1,y1,x2,y2 Integer scalars, pixel-space segment endpoints.
 #'   Exactly one of `x1 == x2` or `y1 == y2` must hold.
 #' @param half_width Integer scalar, pixels to extend on either side.

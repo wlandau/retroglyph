@@ -1,5 +1,7 @@
 # retroglyph development version
 
+* `retro_agent_class$compare()` and `$export()` accept `data = "censoring"`, and `retro_app()` offers it as a third choice alongside the reconstructed survival data and the recaptured pixel trace. It refits the same Kaplan-Meier curves as `data = "survival"` but draws them one pixel wide with a vertical tick mark at every reconstructed censoring time. The thinning is what makes the ticks checkable: a tick a couple of pixels tall disappears inside a line dilated to the source figure's own line width, so the existing view cannot show whether the reconstructed censoring times agree with the ones in the source image.
+
 * A risk table is no longer required. An image with no risk table can now be reconstructed as long as the total number of patients in each data series is known, read off the figure or supplied by the user: that total is the number at risk at time zero, so the model supplies it as a risk table of one entry per series at time 0. This relaxes a stated limitation and required no change to the reconstruction itself, only to the prompting and documentation that had declared a risk table mandatory.
 
 # retroglyph 0.0.9
