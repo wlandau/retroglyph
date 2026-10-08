@@ -159,7 +159,12 @@ retro_image_layer_trace <- function(
   )
   width <- as.integer(width)
   height <- as.integer(height)
-  half_width <- max(0L, as.integer(floor(line_width / 2)))
+  # A segment is dilated symmetrically about its center pixel, so the drawn
+  # thickness is 2 * half_width + 1 and only odd thicknesses exist. Subtract
+  # 1 before halving so an even line_width rounds down to the nearest odd
+  # thickness instead of up: floor(4 / 2) would draw 5 pixels for a curve
+  # measured at 4.
+  half_width <- max(0L, as.integer((line_width - 1) %/% 2))
   # retro_scale_calibration() normally fits pixel -> data-value; swapping
   # which argument is which fits the inverse, data-value -> pixel, directly.
   x_calibration <- retro_scale_calibration(

@@ -247,6 +247,24 @@ test_that("retro_image_layer_trace() thickens the curve by line_width", {
   expect_equal(retro_color_rgb(raster[2, 5]), "#dc3030")
 })
 
+test_that("retro_image_layer_trace() rounds an even line_width down", {
+  # Dilation is symmetric about the center pixel, so only odd thicknesses
+  # exist. An even line_width has to round one way or the other, and it
+  # rounds down: line_width = 4 draws 3 pixels, the same as line_width = 3.
+  # An earlier floor(line_width / 2) rounded up instead and painted row 3,
+  # rendering a 4-pixel source curve 5 pixels wide.
+  args <- trace_args()
+  args$line_width <- 4L
+  on.exit(unlink(args$output))
+  do.call(retro_image_layer_trace, args)
+  raster <- magick::image_read(args$output) |>
+    magick::image_raster(tidy = FALSE) |>
+    as.matrix()
+  expect_equal(retro_color_rgb(raster[1, 5]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[2, 5]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[3, 5]), "#ffffff")
+})
+
 test_that("retro_image_layer_trace() rescales for a 0-100 percentage and cumulative incidence", {
   args <- trace_args()
   args$max_y <- 100

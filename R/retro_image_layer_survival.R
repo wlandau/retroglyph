@@ -173,10 +173,15 @@ retro_image_layer_survival <- function(
   height <- as.integer(height)
   # The censoring view draws wire-thin so the ticks stay visible: a tick
   # 2 pixels up and down is swallowed whole by a dilated line.
+  # A segment is dilated symmetrically about its center pixel, so the drawn
+  # thickness is 2 * half_width + 1 and only odd thicknesses exist. Subtract
+  # 1 before halving so an even line_width rounds down to the nearest odd
+  # thickness instead of up: floor(4 / 2) would draw 5 pixels for a curve
+  # measured at 4.
   half_width <- if (censoring) {
     0L
   } else {
-    max(0L, as.integer(floor(line_width / 2)))
+    max(0L, as.integer((line_width - 1) %/% 2))
   }
   # retro_scale_calibration() normally fits pixel -> data-value; swapping
   # which argument is which fits the inverse, data-value -> pixel, directly.
@@ -358,8 +363,10 @@ retro_layer_censoring_data <- function(ipd, max_y, increasing) {
 #'   `intercept`, the data-value to pixel maps from
 #'   [retro_scale_calibration()].
 #' @param half_width Integer scalar, pixels to extend on either side of the
-#'   curve: `0L` for the wire-thin censoring view, `floor(line_width / 2)`
-#'   otherwise.
+#'   curve: `0L` for the wire-thin censoring view,
+#'   `(line_width - 1) %/% 2` otherwise. The dilation is symmetric about
+#'   the center pixel, so the drawn thickness is `2 * half_width + 1` and
+#'   an even `line_width` rounds down to the nearest odd thickness.
 #' @param width,height Integer scalars, canvas bounds.
 #' @param max_y Numeric scalar, the y-axis scale: `1` for a 0-1 proportion,
 #'   `100` for a 0-100 percentage.
