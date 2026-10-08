@@ -202,7 +202,10 @@ their Kaplan-Meier figure.}
   \subsection{Returns}{
     A tibble in the layout named by `mode` (see [retro_table_wide()]
   and [retro_table_transpose()] for the `"wide"` and `"transposed"`
-  shapes), or `NULL` if the data tool has not run yet.
+  shapes), or `NULL` if the data tool has not run yet. For a figure
+  with no risk table, reconstructed instead from each series' total
+  number of patients, this is a single row per series at time 0
+  holding those totals - in every `mode`.
   }
 }
 
@@ -210,14 +213,14 @@ their Kaplan-Meier figure.}
 \if{html}{\out{<a id="method-retro_agent-events_table"></a>}}
 \if{latex}{\out{\hypertarget{method-retro_agent-events_table}{}}}
 \subsection{\code{retro_agent$events_table()}}{
-  Access the per-arm total events counts read by the
-  data tool. Optional throughout: unlike the risk table, total
-  events is not required, and coverage may be partial, so a `NULL`
+  Access the per-series total events counts read by the
+  data tool. Optional throughout: unlike the numbers at risk, total
+  events is never required, and coverage may be partial, so a `NULL`
   return does not mean the data tool failed to run. Worth
   reviewing when it is present - the model reads the number off the
   source image (or takes it from your own prompt), and it changes
   the reconstruction by sharpening the estimated censoring in each
-  arm's final interval.
+  series' final interval.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{retro_agent$events_table()}
@@ -227,7 +230,7 @@ their Kaplan-Meier figure.}
     A tibble with columns `series` and `events`, at most one
   row per series (from `state$data_events`, the return value of
   [retro_data_events()]), or `NULL` if the data tool has not run
-  yet or no arm reported a total.
+  yet or no series reported a total.
   }
 }
 

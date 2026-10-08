@@ -1,5 +1,7 @@
 # retroglyph development version
 
+* A risk table is no longer required. An image with no risk table can now be reconstructed as long as the total number of patients in each data series is known, read off the figure or supplied by the user: that total is the number at risk at time zero, so the model supplies it as a risk table of one entry per series at time 0. This relaxes a stated limitation and required no change to the reconstruction itself, only to the prompting and documentation that had declared a risk table mandatory.
+
 
 
 # retroglyph 0.0.9

@@ -10,30 +10,42 @@
 #'   calibration ticks, since the risk table's time points may fall well
 #'   outside the two points chosen for calibration. Series may report
 #'   different numbers of time points, since some risk tables leave later
-#'   columns blank for an arm that reached zero at risk first.
+#'   columns blank for a series that reached zero at risk first.
 #'
 #'   This function reads the numbers at risk and nothing else. A series'
 #'   total number of events is a separate, optional, per-series quantity
 #'   handled by [retro_data_events()], even when the source of that number
 #'   is a cumulative events row printed inside the risk table itself.
 #'   Series need not report the same number of time points - a risk table
-#'   column left blank for one arm (commonly the arm that reaches zero at
-#'   risk first) is a legitimate reading, not a misread.
+#'   column left blank for one series (commonly the series that reaches
+#'   zero at risk first) is a legitimate reading, not a misread.
+#'
+#'   One time point per series is a legitimate reading too, and it is how a
+#'   figure with no risk table at all is reconstructed: a series' total
+#'   number of patients is the number at risk at time zero, so a single
+#'   entry per series at `x = 0` is a complete, if minimal, risk table.
+#'   Nothing here or downstream treats that shape specially.
 #' @return A tibble with one row per risk table entry, columns `patients`
 #'   (integer), `series` (character), and `x`,
-#'   sorted by `series_legend` order then increasing `x`. Every image must
-#'   have a risk table, so this never returns `NULL`.
+#'   sorted by `series_legend` order then increasing `x`. Never returns
+#'   `NULL`: a reading is always required, though for a figure with no
+#'   risk table it may be as small as one row per series at `x = 0`
+#'   carrying that series' total number of patients.
 #' @param risk_patients Numeric vector, the number of patients at risk
-#'   (still under observation) for each risk table entry. Required —
-#'   every image must have a risk table. Read directly from the source
+#'   (still under observation) for each risk table entry. Required.
+#'   Read directly from the source
 #'   image. Must have the same length as `risk_series` and `risk_x`.
+#'   For a figure with no risk table, this is one entry per series giving
+#'   that series' total number of patients - the number at risk at time
+#'   zero - paired with `risk_x = 0`.
 #' @param risk_series Character vector, the series name for each
 #'   risk table entry. Required. Every entry is required (no empty
 #'   strings) and must match one of `series_legend`.
 #' @param risk_x Numeric vector, the x-axis (time) coordinate of each
 #'   risk table entry. Required. Read from the source image (the risk
 #'   table's own time-point columns); it need not fall within the range
-#'   spanned by the two axis calibration ticks.
+#'   spanned by the two axis calibration ticks. All zeros when
+#'   `risk_patients` carries per-series totals rather than a risk table.
 #' @param series_legend Character vector, valid series
 #'   names from the legend. Used to validate that
 #'   every entry in `risk_series` names a known series and that every series
@@ -42,6 +54,14 @@
 #' @examples
 #'   retroglyph:::retro_data_risk(
 #'     risk_patients = c(100, 95),
+#'     risk_series = c("Placebo", "Drug 10mg"),
+#'     risk_x = c(0, 0),
+#'     series_legend = c("Placebo", "Drug 10mg")
+#'   )
+#'   # A figure with no risk table, reconstructed from each series' total
+#'   # number of patients: one entry per series, all at time 0.
+#'   retroglyph:::retro_data_risk(
+#'     risk_patients = c(482, 479),
 #'     risk_series = c("Placebo", "Drug 10mg"),
 #'     risk_x = c(0, 0),
 #'     series_legend = c("Placebo", "Drug 10mg")

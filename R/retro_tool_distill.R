@@ -211,11 +211,13 @@ retro_tool_distill <- function(state) {
           "Order is never re-sorted for you. Put the names in the order",
           "that the risk table reads them (top-to-bottom, or",
           "left-to-right if the risk table is arranged horizontally).",
+          "If the figure has no risk table, use the order the legend",
+          "reads them instead.",
           "The reference series is identified separately by the",
           "'reference' argument; it does NOT have to be first in this array.",
           "",
           "For example, c('Drug 10mg', 'Placebo', 'Drug 20mg') is fine",
-          "if that is the risk table's row order."
+          "if that is the risk table's (or legend's) row order."
         ),
         items = ellmer::type_string()
       ),
@@ -227,7 +229,8 @@ retro_tool_distill <- function(state) {
           "calculations. In a clinical trial with multiple study arms,",
           "this is typically where the control arm goes.",
           "It does NOT need to be the first element of",
-          "names; put it wherever it falls in the risk table's reading",
+          "names; put it wherever it falls in the risk table's (or",
+          "legend's) reading",
           "order. If the image has no obvious reference group, pick",
           "whichever series should serve as the denominator - the choice",
           "is positional, not a clinical judgment."
