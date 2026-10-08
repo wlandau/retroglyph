@@ -161,6 +161,21 @@ test_that("retro_image_layer_survival() errors on a non-scalar-logical increasin
   )
 })
 
+test_that("retro_image_layer_survival() errors on a non-scalar-logical censoring", {
+  args <- layer_args()
+  on.exit(unlink(args$output))
+  args$censoring <- "yes"
+  expect_error(
+    do.call(retro_image_layer_survival, args),
+    "censoring must be a single non-missing logical"
+  )
+  args$censoring <- NA
+  expect_error(
+    do.call(retro_image_layer_survival, args),
+    "censoring must be a single non-missing logical"
+  )
+})
+
 test_that("retro_image_layer_survival() errors if layers is missing a legend color", {
   args <- layer_args()
   on.exit(unlink(args$output))
@@ -323,6 +338,61 @@ test_that("retro_image_layer_survival() ends each series at its own last observa
   expect_equal(retro_color_rgb(raster[11, 19]), "#ffffff")
 })
 
+# --- censoring = TRUE --------------------------------------------------------
+
+test_that("retro_image_layer_survival(censoring = TRUE) draws the curve wire-thin", {
+  # The censoring = FALSE counterpart of this test expects row 2 painted
+  # (half_width = 1 around the row-1 flat segment). Thinning is what makes a
+  # 2-pixel tick visible at all, so line_width must stop mattering here.
+  args <- layer_args()
+  args$line_width <- 3L
+  args$censoring <- TRUE
+  on.exit(unlink(args$output))
+  do.call(retro_image_layer_survival, args)
+  raster <- magick::image_read(args$output) |>
+    magick::image_raster(tidy = FALSE) |>
+    as.matrix()
+  expect_equal(retro_color_rgb(raster[1, 5]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[2, 5]), "#ffffff")
+})
+
+test_that("retro_image_layer_survival(censoring = TRUE) ticks the censoring time", {
+  # The censoring at t=10 lands on column 19, on the survival = 0.5 flat run
+  # at row 11, so the tick spans rows 9 to 13 and stops there.
+  args <- layer_args()
+  args$censoring <- TRUE
+  on.exit(unlink(args$output))
+  do.call(retro_image_layer_survival, args)
+  raster <- magick::image_read(args$output) |>
+    magick::image_raster(tidy = FALSE) |>
+    as.matrix()
+  expect_equal(retro_color_rgb(raster[9, 19]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[13, 19]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[14, 19]), "#ffffff")
+  expect_equal(retro_color_rgb(raster[8, 19]), "#ffffff")
+  # The event at t=5 (column 10) is not a censoring time, so the vertical
+  # drop there is not extended past the curve.
+  expect_equal(retro_color_rgb(raster[13, 10]), "#ffffff")
+})
+
+test_that("retro_image_layer_survival(censoring = TRUE) ticks nothing when no patient is censored", {
+  # Both patients now have events, so t=10 drops the curve to 0 instead of
+  # ending it with a censoring. Only the rows above the drop distinguish a
+  # tick from the drop itself: rows 11 to 21 of column 19 are the drop.
+  args <- layer_args()
+  args$data$status <- c(1, 1)
+  args$censoring <- TRUE
+  on.exit(unlink(args$output))
+  do.call(retro_image_layer_survival, args)
+  raster <- magick::image_read(args$output) |>
+    magick::image_raster(tidy = FALSE) |>
+    as.matrix()
+  expect_equal(retro_color_rgb(raster[1, 1]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[11, 19]), "#dc3030")
+  expect_equal(retro_color_rgb(raster[9, 19]), "#ffffff")
+  expect_equal(retro_color_rgb(raster[10, 19]), "#ffffff")
+})
+
 # --- retro_layer_steps() ------------------------------------------------
 
 test_that("retro_layer_steps() builds a flat-drop-flat vertex sequence", {
@@ -369,6 +439,134 @@ test_that("retro_layer_steps() is a flat line when no events occur", {
   result <- retro_layer_steps(ipd, max_y = 1, increasing = FALSE)
   expect_true(all(result$y == 1))
   expect_equal(result$x[length(result$x)], 10)
+})
+
+# --- retro_layer_censoring_data() --------------------------------------------
+
+test_that("retro_layer_censoring_data() returns the censoring times and curve heights", {
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+  result <- retro_layer_censoring_data(ipd, max_y = 1, increasing = FALSE)
+  expect_equal(result$x, 10)
+  expect_equal(result$y, 0.5)
+})
+
+test_that("retro_layer_censoring_data() ignores times with events only", {
+  # Events at t=2 and t=6, censoring at t=4 and t=8.
+  ipd <- tibble::tibble(time = c(2, 4, 6, 8), status = c(1, 0, 1, 0))
+  result <- retro_layer_censoring_data(ipd, max_y = 1, increasing = FALSE)
+  expect_equal(result$x, c(4, 8))
+})
+
+test_that("retro_layer_censoring_data() rescales to a 0-100 percentage", {
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+  result <- retro_layer_censoring_data(ipd, max_y = 100, increasing = FALSE)
+  expect_equal(result$y, 50)
+})
+
+test_that("retro_layer_censoring_data() flips for cumulative incidence", {
+  # One event at t=5 out of 4 patients, so survival is 0.75 at the t=10
+  # censoring and incidence is 0.25 - a value the flip cannot land on by
+  # symmetry.
+  ipd <- tibble::tibble(time = c(5, 10, 10, 10), status = c(1, 0, 0, 0))
+  result <- retro_layer_censoring_data(ipd, max_y = 1, increasing = TRUE)
+  expect_equal(result$y, 0.25)
+})
+
+test_that("retro_layer_censoring_data() returns zero rows when nothing is censored", {
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 1))
+  result <- retro_layer_censoring_data(ipd, max_y = 1, increasing = FALSE)
+  expect_equal(nrow(result), 0L)
+  expect_equal(names(result), c("x", "y"))
+})
+
+# --- retro_layer_survival_draw() ----------------------------------------
+
+test_that("retro_layer_survival_draw() paints the step function and returns the matrix", {
+  # Identity-ish calibration (pixel = value + 1) on a 1-to-1 grid, so the
+  # flat-drop-flat curve for one event at t=5 and one censoring at t=10 is
+  # row 2 (survival 1) from column 1 to 6, column 6 from row 2 to 2 (the
+  # drop to 0.5 rounds to the same row), and row 2 from column 6 to 11.
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+  calibration <- list(slope = 1, intercept = 1)
+  result <- retro_layer_survival_draw(
+    pixel_matrix = matrix("#ffffff", nrow = 20L, ncol = 20L),
+    ipd = ipd,
+    color = "#dc3030",
+    x_calibration = calibration,
+    y_calibration = list(slope = -10, intercept = 15),
+    half_width = 0L,
+    width = 20L,
+    height = 20L,
+    max_y = 1,
+    increasing = FALSE
+  )
+  expect_true(is.matrix(result))
+  expect_equal(dim(result), c(20L, 20L))
+  # Flat at survival = 1 -> row 5; flat at 0.5 -> row 10.
+  expect_equal(result[5L, 1L], "#dc3030")
+  expect_equal(result[5L, 6L], "#dc3030")
+  expect_equal(result[10L, 11L], "#dc3030")
+  expect_equal(result[20L, 20L], "#ffffff")
+})
+
+test_that("retro_layer_survival_draw() paints over what is already on the canvas", {
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+  calibration <- list(slope = 1, intercept = 1)
+  result <- retro_layer_survival_draw(
+    pixel_matrix = matrix("#0000ff", nrow = 20L, ncol = 20L),
+    ipd = ipd,
+    color = "#dc3030",
+    x_calibration = calibration,
+    y_calibration = list(slope = -10, intercept = 15),
+    half_width = 0L,
+    width = 20L,
+    height = 20L,
+    max_y = 1,
+    increasing = FALSE
+  )
+  expect_equal(result[5L, 1L], "#dc3030")
+  expect_equal(result[20L, 20L], "#0000ff")
+})
+
+# --- retro_layer_censoring_draw() ---------------------------------------
+
+test_that("retro_layer_censoring_draw() paints a 5-pixel tick at each censoring time", {
+  # The censoring at t=10 maps to column 11 and row 10, so the tick spans
+  # rows 8 to 12 and stops there.
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+  result <- retro_layer_censoring_draw(
+    pixel_matrix = matrix("#ffffff", nrow = 20L, ncol = 20L),
+    ipd = ipd,
+    color = "#dc3030",
+    x_calibration = list(slope = 1, intercept = 1),
+    y_calibration = list(slope = -10, intercept = 15),
+    width = 20L,
+    height = 20L,
+    max_y = 1,
+    increasing = FALSE
+  )
+  expect_equal(result[8L:12L, 11L], rep("#dc3030", 5L))
+  expect_equal(result[7L, 11L], "#ffffff")
+  expect_equal(result[13L, 11L], "#ffffff")
+  # The event at t=5 (column 6) gets no tick.
+  expect_equal(result[8L, 6L], "#ffffff")
+})
+
+test_that("retro_layer_censoring_draw() leaves the canvas untouched with no censoring", {
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 1))
+  before <- matrix("#ffffff", nrow = 20L, ncol = 20L)
+  result <- retro_layer_censoring_draw(
+    pixel_matrix = before,
+    ipd = ipd,
+    color = "#dc3030",
+    x_calibration = list(slope = 1, intercept = 1),
+    y_calibration = list(slope = -10, intercept = 15),
+    width = 20L,
+    height = 20L,
+    max_y = 1,
+    increasing = FALSE
+  )
+  expect_equal(result, before)
 })
 
 # --- retro_layer_segment() -----------------------------------------------

@@ -22,6 +22,7 @@ Relative to other Kaplan-Meier reconstruction tools, it excels at untangling egr
   The algorithm by @guyot2012enhanced in the [`IPDfromKM`](https://CRAN.R-project.org/package=IPDfromKM) R package reconstructs individual patient survival data from a Kaplan-Meier pixel trace and its corresponding entries in the risk table.
   This happens downstream of the mentioned digitization phase.
   Use `agent$compare(data = "trace")` to check the pixel trace against the source image, and use `agent$compare(data = "survival")` to check the reconstructed survival data against the source image.
+  `agent$compare(data = "censoring")` checks the reconstructed censoring times against the source image.
 ]
 
 ## Installation
@@ -172,6 +173,7 @@ The `compare()` method lets you check for these and other issues that the automa
 For each reconstructed patient-level survival curve, `compare(data = "survival")` (default) refits the reconstructed survival data using `survival::survfit()` to derive the Kaplan-Meier step function, then redraws it on a blank canvas with the same axes as the original image.
 After it redraws all the curves and axes, it launches an HTML widget to compare the resulting reconstructed image against the target image.^[`compare(data = "trace")` is similar, but it redraws the upstream pixel trace instead of the downstream survival data. If there are problems in the reconstruction process, this allows users to distinguish between problems due to `retroglyph` (which usually show up in the trace) versus problems due to `IPDfromKM`, which only affect the downstream survival data.]
 If the curves in the two figures match, then the reconstruction was successful.
+`compare(data = "censoring")` refits the same curves but draws them one pixel wide with a short vertical tick at every reconstructed censoring time, so the censoring marks can be checked against the ones in the source figure.^[The thinning is what makes the ticks legible: a tick a couple of pixels tall disappears inside a curve drawn at the source figure's own line width.]
 Matches are generally better for denser curves with more points, and worse for sparse curves with few points^[This may be an inherent limitation of the algorithm by @guyot2012enhanced in the [`IPDfromKM`](https://CRAN.R-project.org/package=IPDfromKM) R package, which is responsible for reconstructing patient-level survival data from a Kaplan-Meier pixel trace and its corresponding entries in the risk table.].
 
 ```{r}

@@ -902,6 +902,13 @@ test_that("retro_agent$compare(data = \"trace\") returns a visual_diff htmlwidge
   expect_s3_class(widget, "visual_diff")
 })
 
+test_that("retro_agent$compare(data = \"censoring\") returns a visual_diff htmlwidget", {
+  agent <- reconstructed_agent()
+  widget <- agent$compare(data = "censoring")
+  expect_s3_class(widget, "htmlwidget")
+  expect_s3_class(widget, "visual_diff")
+})
+
 test_that("retro_agent$compare() embeds the source and impression images", {
   agent <- reconstructed_agent()
   widget <- agent$compare(front = 2L)

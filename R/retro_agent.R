@@ -436,11 +436,14 @@ retro_agent_class <- R6::R6Class(
     },
     #' @description Visually compare the source image against a freshly
     #'   generated impression, with axes drawn back in and one series
-    #'   brought to the front. Two sources are available for the impression
-    #'   (see the `data` argument): the reconstructed survival data
-    #'   (`state$data_survival`) refit to a Kaplan-Meier curve per series,
-    #'   which validates the thing the package actually exists to produce
-    #'   rather than the raw digitized pixels; or the raw digitized trace
+    #'   brought to the front. Three sources are available for the
+    #'   impression (see the `data` argument): the reconstructed survival
+    #'   data (`state$data_survival`) refit to a Kaplan-Meier curve per
+    #'   series, which validates the thing the package actually exists to
+    #'   produce rather than the raw digitized pixels; the same
+    #'   reconstructed data drawn wire-thin with censoring tick marks,
+    #'   which checks the reconstructed censoring times against the ones in
+    #'   the source figure; or the raw digitized trace
     #'   (`state$data_scaled`) before reconstruction, which isolates
     #'   whether a disagreement traces back to retroglyph's own
     #'   digitization or to `IPDfromKM`'s reconstruction. Each series is
@@ -452,10 +455,13 @@ retro_agent_class <- R6::R6Class(
     #'   `nrow(state$data_legend)`) whose series is drawn on top in the
     #'   impression; the remaining series are layered beneath it in
     #'   legend order.
-    #' @param data Character scalar, either `"survival"` to
+    #' @param data Character scalar, one of `"survival"` to
     #'   render the reconstructed survival data (`state$data_survival`)
     #'   refit to a Kaplan-Meier curve (see [retro_image_layer_survival()]),
-    #'   or `"trace"` to render the raw digitized trace (`state$data_scaled`)
+    #'   `"censoring"` to render those same curves one pixel wide with a
+    #'   vertical tick mark at every reconstructed censoring time (the
+    #'   `censoring = TRUE` mode of [retro_image_layer_survival()]), or
+    #'   `"trace"` to render the raw digitized trace (`state$data_scaled`)
     #'   with no refit (see [retro_image_layer_trace()]) - useful for
     #'   telling apart a retroglyph digitization problem from an
     #'   `IPDfromKM` reconstruction problem.
@@ -470,12 +476,12 @@ retro_agent_class <- R6::R6Class(
         "front must be a single non-missing integer" = is.numeric(front) &&
           length(front) == 1L &&
           !is.na(front),
-        "data must be a single string, either \"survival\" or \"trace\"" = is.character(
+        "data must be a single string, one of \"survival\", \"censoring\", or \"trace\"" = is.character(
           data
         ) &&
           length(data) == 1L &&
           !is.na(data) &&
-          data %in% c("survival", "trace")
+          data %in% c("survival", "censoring", "trace")
       )
       required <- c(
         "data_legend",
@@ -513,15 +519,7 @@ retro_agent_class <- R6::R6Class(
       on.exit(unlink(layered))
       impression <- tempfile(fileext = ".png")
       on.exit(unlink(impression), add = TRUE)
-      if (data == "survival") {
-        layer <- retro_image_layer_survival
-        data <- self$state$data_survival
-      } else {
-        layer <- retro_image_layer_trace
-        data <- self$state$data_scaled
-      }
-      layer(
-        data = data,
+      arguments <- list(
         output = layered,
         layers = c(legend$color[front], legend$color[-front]),
         background = self$state$data_background,
@@ -534,6 +532,17 @@ retro_agent_class <- R6::R6Class(
         max_y = self$state$data_scaled$max_y[1L],
         increasing = self$state$data_scaled$increasing[1L]
       )
+      # "survival" and "censoring" are the same renderer, differing only in
+      # the censoring flag, which retro_image_layer_trace() does not accept.
+      if (data == "trace") {
+        layer <- retro_image_layer_trace
+        arguments$data <- self$state$data_scaled
+      } else {
+        layer <- retro_image_layer_survival
+        arguments$data <- self$state$data_survival
+        arguments$censoring <- identical(data, "censoring")
+      }
+      do.call(layer, arguments)
       retro_image_ruler(
         input = layered,
         output = impression,
@@ -572,7 +581,7 @@ retro_agent_class <- R6::R6Class(
     #'   `compare/` and `data/` subdirectories into.
     #'   `export()` deletes `output` before writing to it, so be careful
     #'   about the choice of output directory.
-    #' @param data Character scalar, either `"survival"` or
+    #' @param data Character scalar, one of `"survival"`, `"censoring"`, or
     #'   `"trace"`, forwarded to [retro_agent_class]$compare() for every
     #'   legend row - see its `data` argument.
     #' @param probabilities Numeric vector, forwarded to
