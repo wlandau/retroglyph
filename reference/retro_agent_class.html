@@ -209,8 +209,8 @@ codes.</p></dd>
 
 <p></p><hr><a id="method-retro_agent-risk_table"></a><div class="section">
 <h3 id="retro-agent-risk-table-"><code>retro_agent$risk_table()</code><a class="anchor" aria-label="anchor" href="#retro-agent-risk-table-"></a></h3>
-<p>Access the risk table read by the data tool, in one of
-  three layouts.</p><div class="section">
+<p>Access the numbers at risk read by the data tool, in
+  one of three layouts.</p><div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">retro_agent</span><span class="op">$</span><span class="fu">risk_table</span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"transposed"</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -232,10 +232,10 @@ their Kaplan-Meier figure.</p></dd>
 <h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
 <p>A tibble in the layout named by `mode` (see [retro_table_wide()]
   and [retro_table_transpose()] for the `"wide"` and `"transposed"`
-  shapes), or `NULL` if the data tool has not run yet. For a figure
-  with no risk table, reconstructed instead from each series' total
-  number of patients, this is a single row per series at time 0
-  holding those totals - in every `mode`.</p>
+  shapes), or `NULL` if the data tool has not run yet. It covers
+  whatever time points the model supplied, which may be as few as
+  one per series - a lone column at time 0, for instance, when all
+  that was available was each series' total number of patients.</p>
 </div>
 
 </div>
