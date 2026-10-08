@@ -23,11 +23,10 @@
 #'      normalizes the result into a decreasing 0-1 survival curve
 #'      starting at `(0, 1)`.
 #'   5. [retro_data_survival()] inverts the Kaplan-Meier step function
-#'      against the risk table's at-risk counts to recover per-patient
-#'      times and censoring status. A risk table reporting a single time
-#'      point per series at `x = 0` - each series' total number of
-#'      patients, the fallback for a figure with no risk table - works
-#'      here unchanged, with no special case anywhere downstream.
+#'      against the at-risk counts to recover per-patient
+#'      times and censoring status. The counts need not form a complete
+#'      risk table; whatever entries each series has are used as-is, with
+#'      no shape special-cased anywhere downstream.
 #' @return A named list with elements:
 #'   * `path` — Tibble with columns `x`, `y`, `color`, `line_width`,
 #'     `width`, `height`, one row per curve pixel.
@@ -53,15 +52,14 @@
 #'   rows, from [retro_do_distill()].
 #' @param y_axis A tibble with columns `label` and `value`, at least 2
 #'   rows, from [retro_do_distill()].
-#' @param risk_patients Numeric vector of at-risk counts. Required. For a
-#'   figure with no risk table, this is one entry per series giving that
-#'   series' total number of patients, paired with `risk_x = 0`. See
-#'   [retro_data_risk()].
+#' @param risk_patients Numeric vector of at-risk counts, one per entry.
+#'   Required. Need not form a complete risk table - any numbers at risk
+#'   will do, from the figure or the user's prompt, as long as every
+#'   series has at least one. See [retro_data_risk()].
 #' @param risk_series Character vector of series names, one per
-#'   risk table entry. Required.
-#' @param risk_x Numeric vector of time coordinates, one per risk table
-#'   entry. Required. All zeros when `risk_patients` carries per-series
-#'   totals rather than a risk table.
+#'   entry. Required.
+#' @param risk_x Numeric vector of time coordinates, one per entry.
+#'   Required. `0` for a series' total number of patients.
 #' @param events_total Numeric vector of per-series total events counts, or
 #'   `NULL`. Optional, and optional per series. See
 #'   [retro_data_events()].

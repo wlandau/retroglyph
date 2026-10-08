@@ -5,9 +5,9 @@
 #'   distilled image: recover the pixels each curve lost to occlusion,
 #'   scale the curve pixels against the calibrated axes, and reconstruct
 #'   individual patient survival data from the model's reading of the
-#'   risk table. A figure with no risk table is reconstructed from the
-#'   total number of patients in each series instead, supplied as a risk
-#'   table of one entry per series at time 0.
+#'   numbers at risk. Whatever numbers are available will do, from the
+#'   figure or from the user's prompt, as long as every series has at
+#'   least one.
 #' @details The returned tool, when invoked by the model, calls
 #'   [retro_do_data()] on the cleaned image in `state$image_clean`
 #'   (from [retro_tool_distill()]) and stores the results in
@@ -18,7 +18,9 @@
 #'   optional per-series total events from the model.
 #'
 #'   Both are read from the original unmodified source image, using the
-#'   model's visual and color reasoning. Neither uses the set-of-mark
+#'   model's visual and color reasoning, or taken from what the user
+#'   stated in the prompt - a stated number outranks the model's own
+#'   reading. Neither uses the set-of-mark
 #'   letter labels at all, so there is no `risk_label` argument. Series
 #'   names are validated against `state$data_legend`.
 #'
@@ -31,13 +33,13 @@
 #'   digit from a different row (events, deaths, censored) was read
 #'   into the wrong place.
 #'
-#'   A figure with no risk table is still reconstructible from each
-#'   series' total number of patients alone, since that total is the
-#'   number at risk at time zero: the model supplies one `risk_patients`
-#'   entry per series with `risk_x = 0`. Nothing downstream treats this as
-#'   a special case - it is an ordinary risk table that happens to report
-#'   a single time point - so the totals may equally come from the
-#'   figure's own annotations or from the user's prompt.
+#'   A series' entries are not required to form a complete risk table.
+#'   No shape is special-cased here or downstream - the reconstruction
+#'   consumes whatever `(patients, series, x)` triples it is given -
+#'   which is what makes the input this flexible: one entry per series at
+#'   `x = 0`, a start and an end per series, or differing time points
+#'   across series are all ordinary readings. The floor is one entry per
+#'   series, at or before the end of that series' digitized extent.
 #'
 #'   `events_total`/`events_series` are separate and optional: one total
 #'   events count per series, over the whole follow-up period, which
@@ -130,19 +132,20 @@ retro_tool_data <- function(state) {
     },
     name = "data",
     description = paste(
-      "Read the data off the distilled image and record the risk table.",
-      "Call this tool AFTER the distill tool.",
+      "Read the data off the distilled image and record the numbers at",
+      "risk. Call this tool AFTER the distill tool.",
       "",
-      "Read the risk table from the ORIGINAL, unmodified source image",
+      "Read the numbers at risk from the ORIGINAL, unmodified source image",
       "(the first image you were shown), using your own visual and color",
       "reasoning, never the set-of-mark letter labels - match each row to",
       "a series by color and position, and read each column's time point",
-      "off the image.",
+      "off the image. Numbers the user stated are equally valid input, and",
+      "outrank your own reading of the figure.",
       "",
-      "If the figure has no risk table, supply one entry per KM curve at",
-      "time 0 holding that curve's total number of patients instead. That",
-      "total may come from the figure's own annotations (an \"N = \" label,",
-      "a legend entry, the caption) or from what the user told you."
+      "Supply whatever numbers at risk are available for each curve, with",
+      "at least one per curve: a full risk table, just each curve's total",
+      "number of patients, a starting and ending sample size, or any",
+      "mixture of these."
     ),
     arguments = list(
       risk_patients = ellmer::type_array(
@@ -150,12 +153,15 @@ retro_tool_data <- function(state) {
           "Numeric risk table values: the number of patients STILL AT",
           "RISK (still under observation) at that time point - never an",
           "events, deaths, or censored count. Must be non-increasing over",
-          "time within each series. Required; supply together with",
-          "risk_series and risk_x. If the figure has NO risk table, supply",
-          "one entry per KM curve giving that curve's TOTAL number of",
-          "patients (the number at risk at time zero), with risk_x = 0 for",
-          "each - either read off the figure or taken from what the user",
-          "stated."
+          "time within each curve. Required; supply together with",
+          "risk_series and risk_x.",
+          "",
+          "One entry per number at risk you have, for any curve, at any",
+          "time point. At least one entry per curve, at or before the end",
+          "of that curve's visible extent; more is better. Curves need not",
+          "share time points. Each number may come from the figure (the",
+          "risk table, an \"N = \" annotation, a legend entry, the caption)",
+          "or from the user, who outranks your own reading of the figure."
         ),
         items = ellmer::type_integer(),
         required = TRUE
@@ -173,13 +179,12 @@ retro_tool_data <- function(state) {
       ),
       risk_x = ellmer::type_array(
         paste(
-          "The x-axis (time) coordinate of each risk table entry, same",
-          "length and order as risk_patients, read from the risk table's",
-          "time-point columns. Need not fall within the two x-axis",
-          "calibration ticks distill used - use whichever values the",
-          "risk table's columns actually align with. Required. Use 0 for",
-          "every entry when the figure has no risk table and risk_patients",
-          "instead carries each KM curve's total number of patients."
+          "The x-axis (time) coordinate each risk table entry was read at,",
+          "same length and order as risk_patients. Need not fall within",
+          "the two x-axis calibration ticks distill used - use whichever",
+          "values the numbers actually correspond to. Use 0 for a curve's",
+          "total number of patients, since that total is the count at time",
+          "zero. Required."
         ),
         items = ellmer::type_number(),
         required = TRUE

@@ -207,8 +207,8 @@ retro_agent_class <- R6::R6Class(
       }
       legend
     },
-    #' @description Access the risk table read by the data tool, in one of
-    #'   three layouts.
+    #' @description Access the numbers at risk read by the data tool, in
+    #'   one of three layouts.
     #' @param mode Character scalar, one of `"transposed"`,
     #'   `"wide"`, or `"long"`. `"long"` is the layout `state$data_risk`
     #'   already uses: one row per series/time entry, columns `series`,
@@ -220,10 +220,10 @@ retro_agent_class <- R6::R6Class(
     #'   their Kaplan-Meier figure.
     #' @return A tibble in the layout named by `mode` (see [retro_table_wide()]
     #'   and [retro_table_transpose()] for the `"wide"` and `"transposed"`
-    #'   shapes), or `NULL` if the data tool has not run yet. For a figure
-    #'   with no risk table, reconstructed instead from each series' total
-    #'   number of patients, this is a single row per series at time 0
-    #'   holding those totals - in every `mode`.
+    #'   shapes), or `NULL` if the data tool has not run yet. It covers
+    #'   whatever time points the model supplied, which may be as few as
+    #'   one per series - a lone column at time 0, for instance, when all
+    #'   that was available was each series' total number of patients.
     risk_table = function(mode = "transposed") {
       stopifnot(
         "mode must be a single string, one of \"transposed\", \"wide\", or \"long\"" = is.character(

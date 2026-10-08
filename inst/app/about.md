@@ -29,8 +29,9 @@ The agent relies on the following assumptions about the input image:
 Likewise, there is one and only one unique y axis.
 3.  The x and y axes are solid, contiguous, perfectly horizontal/vertical lines that cross at the bottom-left corner of the plotting panel, with increasing linear scales.
 4.  The y axis is survival or cumulative incidence, on a probability or percentage scale.
-5.  The image must contain a risk table, or the total number of patients in each data series must be known (from the figure itself or from your prompt).
-6.  The image text must be clear and detailed enough for OCR to read the axis tick labels and the risk table (or the per-series totals that stand in for it).
+5.  At least one number at risk is available for each data series, from the figure or from your prompt.
+A full risk table is ideal but not required: each series' total number of patients, a starting and ending sample size, or any other subset all work, though sparser numbers warrant more scrutiny of the result.
+6.  The image text must be clear and detailed enough for OCR to read the axis tick labels and whatever numbers at risk the figure provides.
 This requires high enough resolution and large enough font.
 
 ## Troubleshooting
