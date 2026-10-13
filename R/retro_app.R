@@ -355,9 +355,9 @@ retro_app_server <- function(chat, authentication_server) {
         front = as.integer(input$select_front),
         data = switch(
           input$select_data,
-          "Reconstructed survival data" = "survival",
-          "Reconstructed censoring times" = "censoring",
-          "Recaptured pixel trace" = "trace"
+          "Survival events only" = "survival",
+          "With censoring times" = "censoring",
+          "Upstream pixel trace" = "trace"
         )
       )
     })
