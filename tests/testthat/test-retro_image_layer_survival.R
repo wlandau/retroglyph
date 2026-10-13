@@ -358,7 +358,9 @@ test_that("retro_image_layer_survival(censoring = TRUE) draws the curve wire-thi
 
 test_that("retro_image_layer_survival(censoring = TRUE) ticks the censoring time", {
   # The censoring at t=10 lands on column 19, on the survival = 0.5 flat run
-  # at row 11, so the tick spans rows 9 to 13 and stops there.
+  # at row 11, so the tick spans rows 9 to 13 and stops there. The tick
+  # half-length is max(2L, round(height / 100)), and this canvas is only 21
+  # pixels tall, so the 2-pixel floor is what sets the length here.
   args <- layer_args()
   args$censoring <- TRUE
   on.exit(unlink(args$output))
@@ -532,7 +534,9 @@ test_that("retro_layer_survival_draw() paints over what is already on the canvas
 
 test_that("retro_layer_censoring_draw() paints a 5-pixel tick at each censoring time", {
   # The censoring at t=10 maps to column 11 and row 10, so the tick spans
-  # rows 8 to 12 and stops there.
+  # rows 8 to 12 and stops there. The tick half-length is
+  # max(2L, round(height / 100)), and this canvas is only 20 pixels tall, so
+  # the 2-pixel floor is what sets the length here.
   ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
   result <- retro_layer_censoring_draw(
     pixel_matrix = matrix("#ffffff", nrow = 20L, ncol = 20L),
@@ -550,6 +554,28 @@ test_that("retro_layer_censoring_draw() paints a 5-pixel tick at each censoring 
   expect_equal(result[13L, 11L], "#ffffff")
   # The event at t=5 (column 6) gets no tick.
   expect_equal(result[8L, 6L], "#ffffff")
+})
+
+test_that("retro_layer_censoring_draw() scales the tick to the canvas height", {
+  # Same censoring at t=10 as above, but on a 600-pixel-tall canvas, where
+  # round(height / 100) = 6 clears the 2-pixel floor. The y-calibration puts
+  # the tick center at row 300, far from either edge, so the tick spans rows
+  # 294 to 306 - 13 pixels, not the 5 a fixed half-length would give.
+  ipd <- tibble::tibble(time = c(5, 10), status = c(1, 0))
+  result <- retro_layer_censoring_draw(
+    pixel_matrix = matrix("#ffffff", nrow = 600L, ncol = 40L),
+    ipd = ipd,
+    color = "#dc3030",
+    x_calibration = list(slope = 1, intercept = 1),
+    y_calibration = list(slope = -200, intercept = 400),
+    width = 40L,
+    height = 600L,
+    max_y = 1,
+    increasing = FALSE
+  )
+  expect_equal(result[294L:306L, 11L], rep("#dc3030", 13L))
+  expect_equal(result[293L, 11L], "#ffffff")
+  expect_equal(result[307L, 11L], "#ffffff")
 })
 
 test_that("retro_layer_censoring_draw() leaves the canvas untouched with no censoring", {

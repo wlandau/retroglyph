@@ -18,13 +18,14 @@
 #'   to `IPDfromKM`'s reconstruction.
 #'
 #'   With `censoring = TRUE` the same curves are drawn one pixel wide
-#'   instead of dilated to `line_width`, and a short vertical tick marks
+#'   instead of dilated to `line_width`, and a vertical tick marks
 #'   every reconstructed censoring time (see
 #'   [retro_layer_censoring_data()]).
-#'   The thinning is what makes the ticks checkable at all: a tick a couple
-#'   of pixels tall vanishes inside a line several pixels thick, so the
-#'   dilated rendering cannot show whether the reconstructed censoring
-#'   times line up with the ones in the source figure.
+#'   The thinning is what makes the ticks checkable at all: a tick only a
+#'   little taller than the line it crosses vanishes inside a line several
+#'   pixels thick, so the dilated rendering cannot show whether the
+#'   reconstructed censoring times line up with the ones in the source
+#'   figure.
 #'
 #'   Every scalar this function needs is a plain argument — it never reads
 #'   `line_width`/`max_y`/`increasing` off a tibble itself. The caller (e.g.
@@ -58,8 +59,8 @@
 #'   time).
 #' @param censoring Logical scalar. `FALSE` (default) draws the curves
 #'   dilated to `line_width` and marks no censoring. `TRUE` draws them one
-#'   pixel wide and adds a vertical tick, 2 pixels up and 2 pixels down,
-#'   at every reconstructed censoring time.
+#'   pixel wide and adds a vertical tick at every reconstructed censoring
+#'   time, scaled to about 2% of `height` (at least 5 pixels tall).
 #' @examples
 #'   data <- tibble::tibble(
 #'     series = rep("Placebo", 6),
@@ -172,7 +173,8 @@ retro_image_layer_survival <- function(
   width <- as.integer(width)
   height <- as.integer(height)
   # The censoring view draws wire-thin so the ticks stay visible: a tick
-  # 2 pixels up and down is swallowed whole by a dilated line.
+  # scaled to a small fraction of the canvas height is swallowed whole by a
+  # dilated line.
   half_width <- if (censoring) {
     0L
   } else {
@@ -421,8 +423,10 @@ retro_layer_survival_draw <- function(
 #' @description Takes the censoring points [retro_layer_censoring_data()]
 #'   finds for one series, maps them from data space into pixel space
 #'   through the two per-axis calibrations, and paints each as a vertical
-#'   tick 2 pixels up and 2 pixels down from the curve, 1 pixel wide, with
-#'   [retro_layer_segment()]. The sibling of
+#'   tick 1 pixel wide with [retro_layer_segment()]. The tick extends
+#'   `max(2L, round(height / 100))` pixels above and below the curve, so its
+#'   total length is about 2% of the canvas height (never under 5 pixels) and
+#'   stays visible on figures of any size. The sibling of
 #'   [retro_layer_survival_draw()], called right after it on the same layer
 #'   of [retro_image_layer_survival()]'s layer loop, so a foreground series'
 #'   ticks overwrite a background series' curve exactly as its own curve
@@ -475,12 +479,18 @@ retro_layer_censoring_draw <- function(
   tick_y <- as.integer(round(
     y_calibration$slope * ticks$y + y_calibration$intercept
   ))
+  # The tick has to stay visible on figures of any size, so its length is a
+  # fixed fraction of the canvas height - the extent a vertical tick reads
+  # against - rather than a fixed pixel count. A fixed count that looks right
+  # on a 300-pixel figure vanishes on a 1200-pixel one. The 2-pixel floor
+  # keeps ticks on tiny canvases from collapsing to a single pixel.
+  tick_half <- max(2L, as.integer(round(height / 100)))
   for (index in seq_along(tick_x)) {
     segment <- retro_layer_segment(
       tick_x[index],
-      tick_y[index] - 2L,
+      tick_y[index] - tick_half,
       tick_x[index],
-      tick_y[index] + 2L,
+      tick_y[index] + tick_half,
       0L,
       width,
       height
