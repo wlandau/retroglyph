@@ -203,10 +203,10 @@ the curves and axes, it launches an HTML widget to compare the resulting
 reconstructed image against the target image.[^2] If the curves in the
 two figures match, then the reconstruction was successful.
 `compare(data = "censoring")` refits the same curves but draws them one
-pixel wide with a short vertical tick at every reconstructed censoring
-time, so the censoring marks can be checked against the ones in the
-source figure.[^3] Matches are generally better for denser curves with
-more points, and worse for sparse curves with few points[^4].
+pixel wide with a vertical tick at every reconstructed censoring time,
+so the censoring marks can be checked against the ones in the source
+figure.[^3] Matches are generally better for denser curves with more
+points, and worse for sparse curves with few points[^4].
 
 ``` r
 
@@ -639,9 +639,10 @@ Kaplan-Meier Plots*. <https://arxiv.org/abs/2509.18141>.
     up in the trace) versus problems due to `IPDfromKM`, which only
     affect the downstream survival data.
 
-[^3]: The thinning is what makes the ticks legible: a tick a couple of
-    pixels tall disappears inside a curve drawn at the source figure’s
-    own line width.
+[^3]: The tick is scaled to about 2% of the image height so it stays
+    visible on figures of any size. The thinning is what makes the ticks
+    legible: a tick no taller than the line it crosses disappears inside
+    a curve drawn at the source figure’s own line width.
 
 [^4]: This may be an inherent limitation of the algorithm by Guyot et
     al. (2012) in the
