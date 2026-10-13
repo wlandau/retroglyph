@@ -165,6 +165,49 @@ retro_color_count <- function(image, colors) {
   result
 }
 
+#' @title Read an image's pixels as a hex color matrix
+#' @keywords internal
+#' @noRd
+#' @description Read a magick image into the form every pixel-level step in
+#'   this package works in: a character matrix of 6-digit hex colors, one
+#'   cell per pixel, plus the background color detected from the same
+#'   raster.
+#' @details This exists so that the package has one definition of "the
+#'   image's pixels". Two steps that read the same file have to agree about
+#'   what color each pixel is, down to the string: [retro_data_censor()]
+#'   compares the colors in this matrix against the `color` column
+#'   [retro_data_path()] recorded, and a different normalization at either
+#'   end would silently match nothing and measure every residual against
+#'   the wrong ink. Sharing the read makes that agreement structural rather
+#'   than a convention two call sites happen to follow.
+#'
+#'   `retro_color_rgb()` is applied with `matrix[] <- `, which fills in
+#'   place and preserves the dimensions. Background detection reads the
+#'   original raster rather than the normalized matrix, matching what
+#'   [retro_background_color()] expects.
+#' @param image A magick image object. An image rather than a file path
+#'   because [retro_data_panel()] passes one it has already read and
+#'   quantized in memory; callers keep their own `magick::image_read()`.
+#' @return A named list with elements:
+#'   * `raster` — The raw `magick::image_raster(tidy = FALSE)` matrix.
+#'   * `pixel_matrix` — Character matrix (height x width) of 6-digit hex
+#'     colors.
+#'   * `background` — Character scalar, the background hex color from
+#'     [retro_background_color()].
+#' @examples
+#'   image <- magick::image_read(matrix("#ffffff", nrow = 2L, ncol = 3L))
+#'   retroglyph:::retro_color_pixels(image)
+retro_color_pixels <- function(image) {
+  raster <- magick::image_raster(image, tidy = FALSE)
+  pixel_matrix <- as.matrix(raster)
+  pixel_matrix[] <- retro_color_rgb(pixel_matrix)
+  list(
+    raster = raster,
+    pixel_matrix = pixel_matrix,
+    background = retro_background_color(raster, quantize = FALSE)
+  )
+}
+
 #' @title Find the nearest built-in R color name for a hex color
 #' @keywords internal
 #' @noRd

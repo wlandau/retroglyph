@@ -20,6 +20,10 @@
 #'   * `y` — Numeric, the data-space y-coordinate, always on a 0-1 survival
 #'     scale: `1` is always the first value within a series, and the trend is
 #'     decreasing after that.
+#'   * `censored` — Logical, `TRUE` for a pixel in a column where
+#'     [retro_data_censor()] detected a censoring tick mark, carried through
+#'     from `data_path` unchanged. `FALSE` for the prepended time-axis
+#'     origin, and `FALSE` throughout if `data_path` had no such column.
 #'   * `max_y` — Numeric, `1` or `100`: whether the *original* plot's
 #'     y-axis read as a 0-1 proportion or a 0-100 percentage. Same value on
 #'     every row; `x`/`y` are already normalized, so this describes the
@@ -41,8 +45,10 @@
 #'   is not included here - look it up from the legend (e.g.
 #'   `state$data_legend`) instead.
 #' @param data_path A tibble with columns `x` (integer, pixel column), `y`
-#'   (integer, pixel row), and `color` (character, hex color). From
-#'   [retro_data_path()].
+#'   (integer, pixel row), and `color` (character, hex color), and
+#'   optionally `censored` (logical). From [retro_data_path()]; in the
+#'   pipeline it arrives by way of [retro_data_censor()], which returns that
+#'   same path data with `censored` added. Defaults to `FALSE` if absent.
 #' @param data_label A tibble from [retro_do_label()] with columns
 #'   `label`, `x`, `y` (pixel centroids), among others.
 #' @param x_axis A tibble from `retro_data_calibrate()$x_axis` with
@@ -72,6 +78,7 @@
 #'     x = c(2L, 2L, 3L, 5L, 8L),
 #'     y = c(3L, 4L, 5L, 5L, 6L),
 #'     color = rep("#dc3030", 5),
+#'     censored = c(FALSE, FALSE, FALSE, TRUE, FALSE),
 #'     line_width = 1L,
 #'     width = 10L,
 #'     height = 12L
@@ -105,6 +112,12 @@ retro_data_scale <- function(
   )
   # Map path colors to series names and validate against the legend.
   data_path$series <- legend$series[match(data_path$color, legend$color)]
+  # Censoring detection is optional upstream: retro_do_data() always runs
+  # retro_data_censor() first, but a hand-built data_path need not carry the
+  # column, and no pixel is a tick mark until something says otherwise.
+  if (!("censored" %in% names(data_path))) {
+    data_path$censored <- rep(FALSE, nrow(data_path))
+  }
   unmatched <- is.na(data_path$series)
   if (any(unmatched)) {
     bad_colors <- unique(data_path$color[unmatched])
@@ -146,12 +159,18 @@ retro_data_scale <- function(
   # independent of whether any of its pixels survive the x >= 0 filter
   # below.
   series_names <- unique(data_path$series)
-  time_axis_origin <- data.frame(x = 0, y = 1, series = series_names)
+  time_axis_origin <- data.frame(
+    x = 0,
+    y = 1,
+    series = series_names,
+    censored = FALSE
+  )
   in_range <- data_path$x >= 0
   observed <- data.frame(
     x = data_path$x[in_range],
     y = data_path$y[in_range],
-    series = data_path$series[in_range]
+    series = data_path$series[in_range],
+    censored = data_path$censored[in_range]
   )
   scaled <- rbind(time_axis_origin, observed)
   # Sort by series (alphabetical), then x ascending; break ties (e.g. a
@@ -161,7 +180,7 @@ retro_data_scale <- function(
   scaled <- scaled[order(scaled$series, scaled$x, -scaled$y), ]
   scaled$max_y <- max_y
   scaled$increasing <- increasing
-  fields <- c("series", "x", "y", "max_y", "increasing")
+  fields <- c("series", "x", "y", "censored", "max_y", "increasing")
   tibble::as_tibble(scaled[, fields])
 }
 

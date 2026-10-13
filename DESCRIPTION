@@ -27,6 +27,7 @@ Depends:
 Imports:
   base64enc,
   bslib,
+  Ckmeans.1d.dp,
   diffviewer,
   dplyr,
   ellmer (>= 0.4.1),

@@ -106,7 +106,7 @@ test_that("retro_tool_data() scales both series into data coordinates", {
   expect_s3_class(state$data_scaled, "tbl_df")
   expect_equal(
     names(state$data_scaled),
-    c("series", "x", "y", "max_y", "increasing")
+    c("series", "x", "y", "censored", "max_y", "increasing")
   )
   expect_setequal(
     unique(state$data_scaled$series),

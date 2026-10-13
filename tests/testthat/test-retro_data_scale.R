@@ -150,7 +150,7 @@ test_that("retro_data_scale() scales a decreasing curve starting at the origin",
     legend = legend
   )
   expect_s3_class(result, "tbl_df")
-  expect_named(result, c("series", "x", "y", "max_y", "increasing"))
+  expect_named(result, c("series", "x", "y", "censored", "max_y", "increasing"))
   expect_equal(result$x, 0:9)
   expect_equal(result$y, c(1, seq(0.8, 0, by = -0.1)))
   expect_true(all(result$max_y == 1))
@@ -452,4 +452,76 @@ test_that("retro_data_scale() errors on labels not in data_label", {
       legend = legend
     )
   )
+})
+
+test_that("retro_data_scale() carries censored through unchanged", {
+  data_label <- tibble::tibble(
+    label = c("A", "B", "C", "D"),
+    word = c("0", "10", "0", "1"),
+    confidence = rep(90, 4),
+    x = c(1, 10, 1, 1),
+    y = c(10, 10, 10, 1),
+    x1 = c(0L, 9L, 0L, 0L),
+    x2 = c(2L, 11L, 2L, 2L),
+    y1 = c(9L, 9L, 9L, 0L),
+    y2 = c(11L, 11L, 11L, 2L)
+  )
+  x_axis <- tibble::tibble(label = c("A", "B"), value = c(0, 10))
+  y_axis <- tibble::tibble(label = c("C", "D"), value = c(0, 1))
+  data_path <- tibble::new_tibble(
+    tibble::tibble(
+      x = 2L:6L,
+      y = c(3L, 4L, 5L, 6L, 7L),
+      color = "#dc3030",
+      censored = c(FALSE, FALSE, TRUE, FALSE, FALSE),
+      line_width = 1L
+    ),
+    width = 10L,
+    height = 12L
+  )
+  legend <- tibble::tibble(color = "#dc3030", series = "Placebo")
+  result <- retro_data_scale(
+    data_path = data_path,
+    data_label = data_label,
+    x_axis = x_axis,
+    y_axis = y_axis,
+    legend = legend
+  )
+  expect_true("censored" %in% names(result))
+  expect_type(result$censored, "logical")
+  # One TRUE in, one TRUE out. The prepended time-axis origin is FALSE.
+  expect_equal(sum(result$censored), 1L)
+  expect_false(result$censored[1L])
+})
+
+test_that("retro_data_scale() defaults censored to FALSE when absent", {
+  data_label <- tibble::tibble(
+    label = c("A", "B", "C", "D"),
+    word = c("0", "10", "0", "1"),
+    confidence = rep(90, 4),
+    x = c(1, 10, 1, 1),
+    y = c(10, 10, 10, 1),
+    x1 = c(0L, 9L, 0L, 0L),
+    x2 = c(2L, 11L, 2L, 2L),
+    y1 = c(9L, 9L, 9L, 0L),
+    y2 = c(11L, 11L, 11L, 2L)
+  )
+  x_axis <- tibble::tibble(label = c("A", "B"), value = c(0, 10))
+  y_axis <- tibble::tibble(label = c("C", "D"), value = c(0, 1))
+  data_path <- tibble::new_tibble(
+    tibble::tibble(x = 2L:6L, y = 3L:7L, color = "#dc3030", line_width = 1L),
+    width = 10L,
+    height = 12L
+  )
+  legend <- tibble::tibble(color = "#dc3030", series = "Placebo")
+  result <- expect_no_warning(
+    retro_data_scale(
+      data_path = data_path,
+      data_label = data_label,
+      x_axis = x_axis,
+      y_axis = y_axis,
+      legend = legend
+    )
+  )
+  expect_false(any(result$censored))
 })

@@ -677,11 +677,8 @@ retro_panel_line_pad <- function(input, endpoints, median_height) {
     initial = FALSE
   )
   quantized <- retro_components_quantize(magick::image_read(masked))
-  raster <- magick::image_raster(quantized, tidy = FALSE)
-  pixel_matrix <- as.matrix(raster)
-  pixel_matrix[] <- retro_color_rgb(pixel_matrix)
-  background <- retro_background_color(raster, quantize = FALSE)
-  line_width <- retro_path_line_width(pixel_matrix, background)
+  pixels <- retro_color_pixels(quantized)
+  line_width <- retro_path_line_width(pixels$pixel_matrix, pixels$background)
   as.integer(line_width + 2L) # 2 extra pixels to account for anti-aliasing
 }
 

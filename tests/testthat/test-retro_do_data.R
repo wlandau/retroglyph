@@ -38,16 +38,22 @@ test_that("retro_do_data() returns every element it documents", {
     risk_series = c("Placebo", "Placebo"),
     risk_x = c(0, 10)
   )
-  expect_named(result, c("path", "risk", "events", "scaled", "survival"))
+  expect_named(
+    result,
+    c("path", "censoring", "risk", "events", "scaled", "survival")
+  )
   expect_s3_class(result$path, "tbl_df")
+  expect_s3_class(result$censoring, "tbl_df")
   expect_s3_class(result$risk, "tbl_df")
   # Total events is optional, and none was supplied here.
   expect_null(result$events)
   expect_s3_class(result$scaled, "tbl_df")
   expect_s3_class(result$survival, "tbl_df")
+  # censoring is path data plus one column, so the path columns survive.
+  expect_equal(names(result$censoring), c(names(result$path), "censored"))
   expect_equal(
     names(result$scaled),
-    c("series", "x", "y", "max_y", "increasing")
+    c("series", "x", "y", "censored", "max_y", "increasing")
   )
   expect_equal(names(result$survival), c("series", "time", "status"))
 })

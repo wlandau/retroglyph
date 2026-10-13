@@ -18,11 +18,16 @@
 #'   3. [retro_data_path()] recovers curve pixels hidden where curves
 #'      overlap, via shortest paths over a graph of foreground pixel
 #'      adjacencies.
-#'   4. [retro_data_scale()] converts each curve's already-thin pixel
+#'   4. [retro_data_censor()] labels which pixel columns of each traced
+#'      curve sit under a censoring tick mark, by measuring how far the
+#'      series' own ink extends beyond its trace. It returns the same path
+#'      data with a `censored` column added, so the step is transparent to
+#'      everything after it.
+#'   5. [retro_data_scale()] converts each curve's already-thin pixel
 #'      trace to data-space coordinates using the axis calibration, and
 #'      normalizes the result into a decreasing 0-1 survival curve
 #'      starting at `(0, 1)`.
-#'   5. [retro_data_survival()] inverts the Kaplan-Meier step function
+#'   6. [retro_data_survival()] inverts the Kaplan-Meier step function
 #'      against the at-risk counts to recover per-patient
 #'      times and censoring status. The counts need not form a complete
 #'      risk table; whatever entries each series has are used as-is, with
@@ -30,11 +35,14 @@
 #' @return A named list with elements:
 #'   * `path` — Tibble with columns `x`, `y`, `color`, `line_width`,
 #'     `width`, `height`, one row per curve pixel.
+#'   * `censoring` — The same tibble as `path`, plus a logical `censored`
+#'     column marking the pixels under a detected censoring tick mark. From
+#'     [retro_data_censor()].
 #'   * `risk` — Tibble of the structured risk table.
 #'   * `events` — Tibble of per-series total events counts, or `NULL` if no
 #'     series reported one.
-#'   * `scaled` — Tibble with columns `series`, `x`, `y`, `max_y`,
-#'     `increasing`: each curve's pixel trace scaled into data
+#'   * `scaled` — Tibble with columns `series`, `x`, `y`, `censored`,
+#'     `max_y`, `increasing`: each curve's pixel trace scaled into data
 #'     coordinates and normalized to a decreasing 0-1 survival curve;
 #'     `max_y`/`increasing` describe the original plot's scale/orientation,
 #'     not `y` itself.
@@ -149,8 +157,9 @@ retro_do_data <- function(
       call. = FALSE
     )
   }
+  censoring <- retro_data_censor(input, path)
   scaled <- retro_data_scale(
-    data_path = path,
+    data_path = censoring,
     data_label = data_label,
     x_axis = x_axis,
     y_axis = y_axis,
@@ -163,6 +172,7 @@ retro_do_data <- function(
   )
   list(
     path = path,
+    censoring = censoring,
     risk = risk,
     events = events,
     scaled = scaled,

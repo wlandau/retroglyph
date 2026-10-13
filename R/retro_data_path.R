@@ -144,10 +144,9 @@ retro_data_path <- function(input) {
   info <- magick::image_info(image)
   width <- info$width
   height <- info$height
-  raster <- magick::image_raster(image, tidy = FALSE)
-  pixel_matrix <- as.matrix(raster)
-  pixel_matrix[] <- retro_color_rgb(pixel_matrix)
-  background <- retro_background_color(raster, quantize = FALSE)
+  pixels <- retro_color_pixels(image)
+  pixel_matrix <- pixels$pixel_matrix
+  background <- pixels$background
   foreground_mask <- pixel_matrix != background
   labeled <- retro_components_label(foreground_mask)
   curve_colors <- setdiff(unique(as.vector(pixel_matrix)), background)
