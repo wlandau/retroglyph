@@ -299,11 +299,11 @@ retro_app_server <- function(chat, authentication_server) {
         "select_data",
         label = "Data for the reconstructed (new) image",
         choices = c(
-          "Reconstructed survival data",
-          "Reconstructed censoring times",
-          "Recaptured pixel trace"
+          "Survival events only",
+          "With censoring times",
+          "Upstream pixel trace"
         ),
-        selected = "Reconstructed survival data"
+        selected = "Survival events only"
       )
     })
 
