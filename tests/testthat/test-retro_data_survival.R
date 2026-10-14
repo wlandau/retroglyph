@@ -277,3 +277,208 @@ test_that("retro_data_survival() total events reaches IPDfromKM and changes the 
   )
   expect_false(isTRUE(all.equal(sum(without$time), sum(with$time))))
 })
+
+# --- censoring tick marks ---
+
+test_that("retro_censor_ticks() collapses a run of flagged points to one tick", {
+  # A tick mark is several pixel columns wide, so it arrives as a run of
+  # adjacent flagged points and must count once, at its center.
+  result <- retro_censor_ticks(
+    tibble::tibble(
+      x = 0:9,
+      censored = c(rep(FALSE, 3L), rep(TRUE, 3L), rep(FALSE, 4L))
+    )
+  )
+  expect_equal(result, 4)
+})
+
+test_that("retro_censor_ticks() separates runs that are not adjacent", {
+  result <- retro_censor_ticks(
+    tibble::tibble(
+      x = 0:9,
+      censored = c(FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE)
+    )
+  )
+  expect_equal(result, c(1.5, 6))
+})
+
+test_that("retro_censor_ticks() returns nothing without flags or a column", {
+  expect_length(retro_censor_ticks(tibble::tibble(x = 0:5)), 0L)
+  expect_length(
+    retro_censor_ticks(tibble::tibble(x = 0:5, censored = rep(FALSE, 6L))),
+    0L
+  )
+})
+
+test_that("retro_censor_counts() derives censoring by elimination", {
+  # 20 at risk falling to 12 is 8 patients gone; 5 of them had events, so
+  # 3 were censored.
+  result <- retro_censor_counts(
+    ipd = data.frame(time = c(1, 2, 3, 4, 5), status = rep(1L, 5L)),
+    risk_table_series = tibble::tibble(x = c(0, 6), patients = c(20L, 12L))
+  )
+  expect_equal(result, 3L)
+})
+
+test_that("retro_censor_counts() reports one count per interval", {
+  result <- retro_censor_counts(
+    ipd = data.frame(time = c(1, 2, 7, 8), status = rep(1L, 4L)),
+    risk_table_series = tibble::tibble(
+      x = c(0, 5, 10),
+      patients = c(20L, 15L, 8L)
+    )
+  )
+  # 0-5: 5 gone, 2 events, 3 censored. 5-10: 7 gone, 2 events, 5 censored.
+  expect_equal(result, c(3L, 5L))
+})
+
+test_that("retro_censor_counts() clamps an impossible count at zero", {
+  # More events than the fall in the number at risk would imply negative
+  # censoring, which a misread digit can produce.
+  result <- retro_censor_counts(
+    ipd = data.frame(time = c(1, 2, 3), status = rep(1L, 3L)),
+    risk_table_series = tibble::tibble(x = c(0, 6), patients = c(20L, 19L))
+  )
+  expect_equal(result, 0L)
+})
+
+test_that("retro_censor_counts() brackets no interval with one risk entry", {
+  expect_length(
+    retro_censor_counts(
+      ipd = data.frame(time = 1, status = 1L),
+      risk_table_series = tibble::tibble(x = 0, patients = 20L)
+    ),
+    0L
+  )
+})
+
+test_that("retro_censor_spread() spreads rather than front-loading", {
+  # Two censorings over four ticks take the ends, not the first two.
+  expect_equal(retro_censor_spread(ticks = c(1, 2, 3, 4), n = 2L), c(1, 4))
+  # One each, plus a spread remainder of one.
+  expect_equal(
+    retro_censor_spread(ticks = c(1, 2, 3), n = 4L),
+    c(1, 1, 2, 3)
+  )
+  expect_length(retro_censor_spread(ticks = c(1, 2, 3), n = 7L), 7L)
+})
+
+test_that("retro_censor_positions() keeps each censoring in its interval", {
+  result <- retro_censor_positions(
+    ticks = c(1, 2, 7, 8),
+    risk_table_series = tibble::tibble(
+      x = c(0, 5, 10),
+      patients = c(20L, 15L, 8L)
+    ),
+    counts = c(1L, 3L)
+  )
+  expect_equal(sum(result <= 5), 1L)
+  expect_equal(sum(result > 5), 3L)
+})
+
+test_that("retro_censor_positions() leaves a tickless interval alone", {
+  # Its censorings are not pinned, so the second pass spreads them the
+  # conventional way rather than dropping them.
+  result <- retro_censor_positions(
+    ticks = c(1, 2),
+    risk_table_series = tibble::tibble(
+      x = c(0, 5, 10),
+      patients = c(20L, 15L, 8L)
+    ),
+    counts = c(2L, 4L)
+  )
+  expect_length(result, 2L)
+  expect_true(all(result <= 5))
+})
+
+test_that("retro_risk_table_augment() keeps patients non-increasing", {
+  result <- retro_risk_table_augment(
+    risk_table_series = tibble::tibble(x = c(0, 6), patients = c(20L, 12L)),
+    positions = c(2, 4),
+    ipd = data.frame(
+      time = seq(0.5, 10, by = 0.5),
+      status = rep(c(1L, 0L), each = 10L)
+    ),
+    trace_times = seq(0, 10, by = 0.5)
+  )
+  expect_named(result, c("x", "patients"))
+  expect_false(is.unsorted(-result$patients))
+  expect_false(is.unsorted(result$x))
+})
+
+test_that("retro_risk_table_augment() leaves the model-read counts alone", {
+  # The counts read off the figure are authoritative; only added rows move.
+  risk_table_series <- tibble::tibble(x = c(0, 6), patients = c(20L, 12L))
+  result <- retro_risk_table_augment(
+    risk_table_series = risk_table_series,
+    positions = c(2, 4),
+    ipd = data.frame(
+      time = seq(0.5, 10, by = 0.5),
+      status = rep(c(1L, 0L), each = 10L)
+    ),
+    trace_times = seq(0, 10, by = 0.5)
+  )
+  expect_equal(result$patients[result$x == 0], 20L)
+  expect_equal(result$patients[result$x == 6], 12L)
+})
+
+test_that("retro_survival_series() is unchanged when no ticks are detected", {
+  scaled_series <- tibble::tibble(
+    x = seq(0, 10, by = 0.5),
+    y = pmax(0.6, 1 - 0.04 * seq(0, 10, by = 0.5))
+  )
+  risk_table_series <- tibble::tibble(x = c(0, 10), patients = c(100L, 50L))
+  without <- retro_survival_series(
+    scaled_series = scaled_series,
+    risk_table_series = risk_table_series,
+    series_id = 1L
+  )
+  scaled_series$censored <- rep(FALSE, nrow(scaled_series))
+  with <- retro_survival_series(
+    scaled_series = scaled_series,
+    risk_table_series = risk_table_series,
+    series_id = 1L
+  )
+  expect_equal(with, without)
+})
+
+test_that("censoring tick marks move the reconstructed censoring times", {
+  # End-to-end proof that the censored column reaches the output. The
+  # counts are pinned by the risk table either way; only the positions
+  # move, and they move onto the ticks.
+  x <- seq(0, 10, by = 0.1)
+  scaled <- tibble::tibble(
+    series = rep("Placebo", length(x)),
+    x = x,
+    y = pmax(0.6, 1 - 0.04 * x),
+    censored = rep(FALSE, length(x))
+  )
+  for (tick in c(2, 5, 8)) {
+    scaled$censored[abs(scaled$x - tick) < 0.051] <- TRUE
+  }
+  risk_table <- tibble::tibble(
+    patients = c(100L, 50L),
+    series = rep("Placebo", 2L),
+    x = c(0, 10)
+  )
+  plain <- scaled
+  plain$censored <- rep(FALSE, nrow(plain))
+  without <- retro_data_survival(plain, risk_table)
+  with <- retro_data_survival(scaled, risk_table)
+  # Same patients and same events: the risk table decides both.
+  expect_equal(nrow(with), nrow(without))
+  expect_equal(sum(with$status), sum(without$status))
+  # The censoring times differ, and most of them now sit within one trace
+  # step of a tick, which the uniform spread does not manage.
+  censored_with <- with$time[with$status == 0L & with$time < 10]
+  censored_without <- without$time[without$status == 0L & without$time < 10]
+  expect_false(isTRUE(all.equal(sort(censored_with), sort(censored_without))))
+  near_tick <- function(times) {
+    sum(vapply(
+      times,
+      function(time) any(abs(time - c(2, 5, 8)) <= 0.15),
+      logical(1L)
+    ))
+  }
+  expect_gt(near_tick(censored_with), near_tick(censored_without))
+})

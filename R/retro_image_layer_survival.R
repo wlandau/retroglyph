@@ -58,7 +58,7 @@
 #'   time).
 #' @param censoring Logical scalar. `FALSE` (default) draws the curves
 #'   dilated to `line_width` and marks no censoring. `TRUE` draws them one
-#'   pixel wide and adds a vertical tick, 2 pixels up and 2 pixels down,
+#'   pixel wide and adds a vertical tick, at least 2% of the canvas height,
 #'   at every reconstructed censoring time.
 #' @examples
 #'   data <- tibble::tibble(
@@ -171,8 +171,8 @@ retro_image_layer_survival <- function(
   )
   width <- as.integer(width)
   height <- as.integer(height)
-  # The censoring view draws wire-thin so the ticks stay visible: a tick
-  # 2 pixels up and down is swallowed whole by a dilated line.
+  # The censoring view draws wire-thin so the ticks stay visible: a short
+  # tick is swallowed whole by a dilated line.
   # A segment is dilated symmetrically about its center pixel, so the drawn
   # thickness is 2 * half_width + 1 and only odd thicknesses exist. Subtract
   # 1 before halving so an even line_width rounds down to the nearest odd
@@ -428,8 +428,9 @@ retro_layer_survival_draw <- function(
 #' @description Takes the censoring points [retro_layer_censoring_data()]
 #'   finds for one series, maps them from data space into pixel space
 #'   through the two per-axis calibrations, and paints each as a vertical
-#'   tick 2 pixels up and 2 pixels down from the curve, 1 pixel wide, with
-#'   [retro_layer_segment()]. The sibling of
+#'   tick, 1 pixel wide, with [retro_layer_segment()]. The tick is at least
+#'   2% of the canvas height, and never shorter than the 5 pixels a small
+#'   canvas gets, so it stays legible as the image scales up. The sibling of
 #'   [retro_layer_survival_draw()], called right after it on the same layer
 #'   of [retro_image_layer_survival()]'s layer loop, so a foreground series'
 #'   ticks overwrite a background series' curve exactly as its own curve
@@ -482,12 +483,18 @@ retro_layer_censoring_draw <- function(
   tick_y <- as.integer(round(
     y_calibration$slope * ticks$y + y_calibration$intercept
   ))
+  # A fixed 2 pixels up and down is legible on a small canvas but vanishes
+  # on a large one, where 5 pixels of tick is a rounding error next to the
+  # curve it has to stand out from. Scaling the half-height with the canvas
+  # keeps the tick at least 2% of the image tall, and the fixed 2 stays the
+  # floor so a small canvas is unaffected.
+  half_height <- max(2L, as.integer(ceiling(0.01 * height)))
   for (index in seq_along(tick_x)) {
     segment <- retro_layer_segment(
       tick_x[index],
-      tick_y[index] - 2L,
+      tick_y[index] - half_height,
       tick_x[index],
-      tick_y[index] + 2L,
+      tick_y[index] + half_height,
       0L,
       width,
       height

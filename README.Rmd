@@ -173,7 +173,7 @@ The `compare()` method lets you check for these and other issues that the automa
 For each reconstructed patient-level survival curve, `compare(data = "survival")` (default) refits the reconstructed survival data using `survival::survfit()` to derive the Kaplan-Meier step function, then redraws it on a blank canvas with the same axes as the original image.
 After it redraws all the curves and axes, it launches an HTML widget to compare the resulting reconstructed image against the target image.^[`compare(data = "trace")` is similar, but it redraws the upstream pixel trace instead of the downstream survival data. If there are problems in the reconstruction process, this allows users to distinguish between problems due to `retroglyph` (which usually show up in the trace) versus problems due to `IPDfromKM`, which only affect the downstream survival data.]
 If the curves in the two figures match, then the reconstruction was successful.
-`compare(data = "censoring")` refits the same curves but draws them one pixel wide with a short vertical tick at every reconstructed censoring time, so the censoring marks can be checked against the ones in the source figure.^[The thinning is what makes the ticks legible: a tick a couple of pixels tall disappears inside a curve drawn at the source figure's own line width.]
+`compare(data = "censoring")` refits the same curves but draws them one pixel wide with a vertical tick at every reconstructed censoring time, so the censoring marks can be checked against the ones in the source figure.^[The thinning is what makes the ticks legible: a short tick disappears inside a curve drawn at the source figure's own line width. The tick is sized at 2% of the image height, so it stays visible on a large figure rather than shrinking to a speck.]
 Matches are generally better for denser curves with more points, and worse for sparse curves with few points^[This may be an inherent limitation of the algorithm by @guyot2012enhanced in the [`IPDfromKM`](https://CRAN.R-project.org/package=IPDfromKM) R package, which is responsible for reconstructing patient-level survival data from a Kaplan-Meier pixel trace and its corresponding entries in the risk table.].
 
 ```{r}
@@ -357,6 +357,19 @@ The model makes high-level judgment calls during the pipeline, and hard-coded to
     * **Data reconstruction**: After resolving overplotting, the tool supplies the skeletonized curve traces and the model-supplied numbers at risk (read from the source image or taken from your `prompt`) to the `IPDfromKM` R package.
     The `IPDfromKM` package uses the algorithm by @guyot2012enhanced to reconstruct individual patient survival data from the Kaplan-Meier pixel traces and the numbers at risk.
     If a series' total number of events is also available - either stated in your `prompt` or printed in the figure - the tool passes that along too, which sharpens the estimated censoring at the end of that series' follow-up.
+    * **Censoring placement**: The algorithm by @guyot2012enhanced recovers *how many* patients were censored between two numbers at risk, but nothing about *where* in that span each censoring happened, so `IPDfromKM` spreads them at even spacing.
+    The figure itself shows where: most Kaplan-Meier plots draw a short tick mark on the curve at every censoring time.
+    This step reads those tick marks and moves the reconstructed censoring times onto them.
+
+        Because `IPDfromKM` accepts no observed censoring times, the tool works through the one input it does respond to - the risk table. A span of time narrow enough to hold a single censoring leaves that censoring nowhere else to go. The steps are:
+
+        1. **Tick detection**: find the curve's own ink that the thin medial-axis trace does not account for. A tick is drawn in the series' color and extends above and below the line, so measuring each pixel column's excess ink height separates tick marks from ordinary curve^[See `retroglyph:::retro_data_censor()`.].
+        1. **Censoring counts**: a patient leaves a risk set only by having an event or by being censored, so within each span between two numbers at risk, the fall in the number at risk that the reconstructed events do not explain is censoring.
+        1. **Position assignment**: give each of those censorings a tick mark inside its own span to sit at, spread evenly over the available ticks rather than filled in chronological order.
+        1. **Risk table augmentation**: add a pair of risk table entries bracketing each assigned position, narrowing the span around it to a single step of the trace.
+        1. **Second reconstruction**: run the same reconstruction again on the same trace with the augmented risk table. The censorings now land on the tick marks, and this result replaces the first.
+
+        The numbers at risk alone decide how many patients were censored; the tick marks only say where those censorings may fall. So a figure whose ticks are partly hidden by overplotting still reconstructs the full censoring count, and a figure that draws no ticks reconstructs exactly as it did before.
 
 ## Limitations
 
@@ -368,6 +381,7 @@ The agent relies on the following assumptions about the input image:
 1. The y axis is survival or cumulative incidence, on a probability or percentage scale.
 1. At least one number at risk is available for each KM curve, from the figure or from your `prompt`. A full risk table is ideal but not required: each curve's total number of patients, a starting and ending sample size, or any other subset all work, though sparser numbers warrant more scrutiny of the result.
 1. The image text must be clear and detailed enough for OCR to read the axis tick labels and whatever numbers at risk the figure provides. This requires high enough resolution and large enough font.
+1. Censoring tick mark detection is still approximate, and two cases currently mislead it. A figure that draws no tick marks at all has its tallest pixel columns flagged anyway, and a vertical step drop is flagged at its outer columns. Either one puts a reconstructed censoring at a time the figure does not mark. Use `compare(data = "censoring")` to check the reconstructed ticks against the source figure.
 
 Most published Kaplan-Meier images satisfy all these assumptions.
 

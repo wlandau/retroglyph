@@ -227,10 +227,10 @@ curves and axes, it launches an HTML widget to compare the resulting
 reconstructed image against the target image.[^2] If the curves in the
 two figures match, then the reconstruction was successful.
 `compare(data = "censoring")` refits the same curves but draws them one
-pixel wide with a short vertical tick at every reconstructed censoring
-time, so the censoring marks can be checked against the ones in the
-source figure.[^3] Matches are generally better for denser curves with
-more points, and worse for sparse curves with few points[^4].
+pixel wide with a vertical tick at every reconstructed censoring time,
+so the censoring marks can be checked against the ones in the source
+figure.[^3] Matches are generally better for denser curves with more
+points, and worse for sparse curves with few points[^4].
 
 ``` r
 agent$compare(front = 2)
@@ -497,6 +497,7 @@ with only the Kaplan-Meier curves.</figcaption>
       overlap and occlude one another. To reconstruct a full curve, this
       step traces a path that connects visible pixels through occluded
       ones.
+
       - **Adjacency graph**: First, the tool builds an adjacency graph
         where each Kaplan-Meier pixel is a vertex connected to all its
         adjacent non-background neighbors. The edges connecting adjacent
@@ -537,6 +538,7 @@ with only the Kaplan-Meier curves.</figcaption>
         against the centered path after line centering, which runs
         through the middle of the original
         line.](./man/figures/readme/morphology.png)
+
     - **Data reconstruction**: After resolving overplotting, the tool
       supplies the skeletonized curve traces and the model-supplied
       numbers at risk (read from the source image or taken from your
@@ -548,6 +550,45 @@ with only the Kaplan-Meier curves.</figcaption>
       printed in the figure - the tool passes that along too, which
       sharpens the estimated censoring at the end of that series’
       follow-up.
+
+    - **Censoring placement**: The algorithm by Guyot et al. (2012)
+      recovers *how many* patients were censored between two numbers at
+      risk, but nothing about *where* in that span each censoring
+      happened, so `IPDfromKM` spreads them at even spacing. The figure
+      itself shows where: most Kaplan-Meier plots draw a short tick mark
+      on the curve at every censoring time. This step reads those tick
+      marks and moves the reconstructed censoring times onto them.
+
+      Because `IPDfromKM` accepts no observed censoring times, the tool
+      works through the one input it does respond to - the risk table. A
+      span of time narrow enough to hold a single censoring leaves that
+      censoring nowhere else to go. The steps are:
+
+      1.  **Tick detection**: find the curve’s own ink that the thin
+          medial-axis trace does not account for. A tick is drawn in the
+          series’ color and extends above and below the line, so
+          measuring each pixel column’s excess ink height separates tick
+          marks from ordinary curve[^7].
+      2.  **Censoring counts**: a patient leaves a risk set only by
+          having an event or by being censored, so within each span
+          between two numbers at risk, the fall in the number at risk
+          that the reconstructed events do not explain is censoring.
+      3.  **Position assignment**: give each of those censorings a tick
+          mark inside its own span to sit at, spread evenly over the
+          available ticks rather than filled in chronological order.
+      4.  **Risk table augmentation**: add a pair of risk table entries
+          bracketing each assigned position, narrowing the span around
+          it to a single step of the trace.
+      5.  **Second reconstruction**: run the same reconstruction again
+          on the same trace with the augmented risk table. The
+          censorings now land on the tick marks, and this result
+          replaces the first.
+
+      The numbers at risk alone decide how many patients were censored;
+      the tick marks only say where those censorings may fall. So a
+      figure whose ticks are partly hidden by overplotting still
+      reconstructs the full censoring count, and a figure that draws no
+      ticks reconstructs exactly as it did before.
 
 ## Limitations
 
@@ -571,6 +612,13 @@ The agent relies on the following assumptions about the input image:
 6.  The image text must be clear and detailed enough for OCR to read the
     axis tick labels and whatever numbers at risk the figure provides.
     This requires high enough resolution and large enough font.
+7.  Censoring tick mark detection is still approximate, and two cases
+    currently mislead it. A figure that draws no tick marks at all has
+    its tallest pixel columns flagged anyway, and a vertical step drop
+    is flagged at its outer columns. Either one puts a reconstructed
+    censoring at a time the figure does not mark. Use
+    `compare(data = "censoring")` to check the reconstructed ticks
+    against the source figure.
 
 Most published Kaplan-Meier images satisfy all these assumptions.
 
@@ -694,9 +742,10 @@ Kaplan-Meier Plots*. <https://arxiv.org/abs/2509.18141>.
     up in the trace) versus problems due to `IPDfromKM`, which only
     affect the downstream survival data.
 
-[^3]: The thinning is what makes the ticks legible: a tick a couple of
-    pixels tall disappears inside a curve drawn at the source figure’s
-    own line width.
+[^3]: The thinning is what makes the ticks legible: a short tick
+    disappears inside a curve drawn at the source figure’s own line
+    width. The tick is sized at 2% of the image height, so it stays
+    visible on a large figure rather than shrinking to a speck.
 
 [^4]: This may be an inherent limitation of the algorithm by Guyot et
     al. (2012) in the
@@ -710,3 +759,5 @@ Kaplan-Meier Plots*. <https://arxiv.org/abs/2509.18141>.
     the latter makes the final judgment call on what the numbers are.
 
 [^6]: See `retroglyph:::retro_path_claim_pixels()`.
+
+[^7]: See `retroglyph:::retro_data_censor()`.
