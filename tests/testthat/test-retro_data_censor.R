@@ -1,15 +1,33 @@
 # --- retro_data_censor_column ----------------------------------------------
 
-test_that("retro_data_censor_column() measures the larger overhang", {
-  # Ink spans rows 5-25, the path spans rows 14-16: 9 pixels of overhang
-  # above, 9 below.
-  expect_equal(retro_data_censor_column(ink_y = 5L:25L, path_y = 14L:16L), 9)
+test_that("retro_data_censor_column() measures ink height beyond the path", {
+  # Ink spans rows 5-25 (21 rows), the path spans rows 14-16 (3 rows): 18
+  # pixels of ink height the path does not account for.
+  expect_equal(retro_data_censor_column(ink_y = 5L:25L, path_y = 14L:16L), 18)
 })
 
-test_that("retro_data_censor_column() takes the maximum, not the sum", {
-  # A tick clipped at the panel edge overhangs 10 pixels above and only 1
-  # below. The maximum keeps it detectable.
-  expect_equal(retro_data_censor_column(ink_y = 5L:17L, path_y = 15L:16L), 10)
+test_that("retro_data_censor_column() counts both overhangs, not just one", {
+  # A tick clipped at the panel edge keeps only the overhang it has: 10
+  # pixels above and 1 below, against 18 for the full tick above. Lower than
+  # an unclipped tick, but still well above the line width an ordinary
+  # column yields.
+  expect_equal(retro_data_censor_column(ink_y = 5L:17L, path_y = 15L:16L), 11)
+})
+
+test_that("retro_data_censor_column() nets out a vertical step drop", {
+  # Where the skeleton traverses a step drop it spans nearly as many rows as
+  # the ink does, so the two spans cancel. Compare against a tick with the
+  # same ink span but a thin path through it.
+  expect_equal(retro_data_censor_column(ink_y = 14L:40L, path_y = 16L:38L), 4)
+  expect_equal(retro_data_censor_column(ink_y = 14L:40L, path_y = 26L:28L), 24)
+})
+
+test_that("retro_data_censor_column() clamps when the path out-spans the ink", {
+  # A reconstructed path bridging an occlusion gap can span many rows above
+  # just a stray pixel of this series' own color. Without the clamp the
+  # difference would be large and negative, and an unsigned distance would
+  # report it as a tall tick.
+  expect_equal(retro_data_censor_column(ink_y = 15L, path_y = 15L:39L), 0)
 })
 
 test_that("retro_data_censor_column() is 0 when the path covers the ink", {
@@ -37,7 +55,7 @@ test_that("retro_censor_centers() is a stub that always reports 2", {
 
 # --- retro_data_censor_color -----------------------------------------------
 
-test_that("retro_data_censor_color() flags the high-residual column", {
+test_that("retro_data_censor_color() flags the tallest column", {
   # A path along row 15 from columns 1-20, with ink extending far above and
   # below the path at column 10 only.
   series <- data.frame(x = 1L:20L, y = rep(15L, 20L))
@@ -50,8 +68,8 @@ test_that("retro_data_censor_color() flags the high-residual column", {
 })
 
 test_that("retro_data_censor_color() flags every path pixel in a tick column", {
-  # The residual is a property of the column, so a column with several path
-  # pixels (a vertical drop) has all of them labeled together.
+  # The excess height is a property of the column, so a column with several
+  # path pixels (a vertical drop) has all of them labeled together.
   series <- data.frame(x = c(1L, 2L, 2L, 2L, 3L), y = c(5L, 5L, 6L, 7L, 7L))
   ink <- rbind(
     data.frame(x = c(1L, 3L), y = c(5L, 7L)),
@@ -61,9 +79,9 @@ test_that("retro_data_censor_color() flags every path pixel in a tick column", {
   expect_equal(result$censored, c(FALSE, TRUE, TRUE, TRUE, FALSE))
 })
 
-test_that("retro_data_censor_color() labels nothing when residuals are uniform", {
+test_that("retro_data_censor_color() labels nothing when columns are uniform", {
   # Every column's ink lines up with the path exactly, so there is no split
-  # to make and the length(unique(residuals)) < 2 guard fires.
+  # to make and the length(unique(excess_heights)) < 2 guard fires.
   series <- data.frame(x = 1L:10L, y = rep(5L, 10L))
   ink <- data.frame(x = 1L:10L, y = rep(5L, 10L))
   result <- retro_data_censor_color(ink, series)
@@ -117,11 +135,10 @@ test_that("retro_data_censor() returns path data plus one column", {
 
 test_that("retro_data_censor() handles a curve with no tick marks", {
   # A plain thick line. With retro_censor_centers() stubbed to always
-  # report 2, the k-means still splits whatever residual variation the
-  # line's own anti-aliasing and skeleton leave behind, so only the
-  # structural contract is asserted here. The value assertion - that
-  # nothing at all is flagged - arrives with the real
-  # retro_censor_centers().
+  # report 2, the k-means still splits whatever variation the line's own
+  # anti-aliasing and skeleton leave behind, so only the structural
+  # contract is asserted here. The value assertion - that nothing at all is
+  # flagged - arrives with the real retro_censor_centers().
   pixel_matrix <- matrix("#ffffff", nrow = 30L, ncol = 40L)
   pixel_matrix[14L:17L, 2L:39L] <- "#dc3030"
   input <- retro_test_png(pixel_matrix)
@@ -154,9 +171,9 @@ test_that("retro_data_censor() handles each series separately", {
 })
 
 test_that("retro_data_censor() reads the same pixels retro_data_path() did", {
-  # Residuals are measured against ink matched by color string, so every
-  # color the path recorded has to exist in the pixel matrix the censor
-  # step reads. retro_color_pixels() is shared between the two to
+  # Excess heights are measured against ink matched by color string, so
+  # every color the path recorded has to exist in the pixel matrix the
+  # censor step reads. retro_color_pixels() is shared between the two to
   # guarantee it; this asserts the guarantee holds.
   pixel_matrix <- matrix("#ffffff", nrow = 60L, ncol = 40L)
   pixel_matrix[14L:17L, 2L:39L] <- "#dc3030"

@@ -177,7 +177,7 @@ retro_color_count <- function(image, colors) {
 #'   what color each pixel is, down to the string: [retro_data_censor()]
 #'   compares the colors in this matrix against the `color` column
 #'   [retro_data_path()] recorded, and a different normalization at either
-#'   end would silently match nothing and measure every residual against
+#'   end would silently match nothing and measure every excess height against
 #'   the wrong ink. Sharing the read makes that agreement structural rather
 #'   than a convention two call sites happen to follow.
 #'

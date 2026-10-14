@@ -14,16 +14,16 @@
 #'   for - is what identifies a tick.
 #'
 #'   The measurement is per pixel column. For one series at one column,
-#'   [retro_data_censor_column()] reports how far that column's extreme ink
-#'   pixel lies beyond the trace's extreme pixel: a residual, borrowing the
-#'   statistical term. An ordinary column's residual is on the order of the
-#'   line width, since the trace is a one-pixel skeleton through a band
-#'   several pixels thick. A tick column's residual is much larger, since
-#'   the tick extends well past the line. Splitting the residuals into a low
+#'   [retro_data_censor_column()] reports the ink's vertical extent less the
+#'   trace's own: an excess height. An ordinary column's excess height is on
+#'   the order of the line width, since the trace is a one-pixel skeleton
+#'   through a band several pixels thick. A tick column's is much larger,
+#'   since the tick extends well past the line in both directions while the
+#'   trace runs thinly through it. Splitting the excess heights into a low
 #'   group and a high group therefore separates curve ink from tick ink, and
 #'   that is what [retro_data_censor_color()] does, deferring to
-#'   [retro_censor_centers()] for whether the residuals form two groups at
-#'   all (a figure that draws no ticks has only one).
+#'   [retro_censor_centers()] for whether they form two groups at all (a
+#'   figure that draws no ticks has only one).
 #'
 #'   Occlusion is not accounted for, and cannot be. Where another series and
 #'   its own censoring ticks overplot a target series and its ticks, the
@@ -82,18 +82,18 @@ retro_data_censor <- function(input, path) {
 #' @title Detect one series' censoring tick marks from its ink
 #' @keywords internal
 #' @noRd
-#' @description Measure one residual per pixel column of a series' traced
-#'   path (see [retro_data_censor_column()]), split the residuals into curve
-#'   ink and tick ink, and label the path pixels accordingly.
-#' @details The split is a univariate k-means on the residuals, with the
+#' @description Measure one excess height per pixel column of a series'
+#'   traced path (see [retro_data_censor_column()]), split the excess heights
+#'   into curve ink and tick ink, and label the path pixels accordingly.
+#' @details The split is a univariate k-means on the excess heights, with the
 #'   number of clusters coming from [retro_censor_centers()]: one cluster
 #'   means the figure draws no censoring ticks and nothing is labeled, two
 #'   means the higher-centered cluster is tick ink. Every path pixel in a
-#'   tick column is labeled, since the residual is a property of the column
-#'   rather than of one pixel.
+#'   tick column is labeled, since the excess height is a property of the
+#'   column rather than of one pixel.
 #'
 #'   The clustering uses `Ckmeans.1d.dp` rather than `stats::kmeans()`.
-#'   The residuals are univariate, and `Ckmeans.1d.dp` solves univariate
+#'   The excess heights are univariate, and `Ckmeans.1d.dp` solves univariate
 #'   k-means exactly, by dynamic programming, so the split is both optimal
 #'   and deterministic. `stats::kmeans()` is a heuristic started from a
 #'   random seeding, so it can label the same figure differently from one
@@ -120,7 +120,7 @@ retro_data_censor_color <- function(ink, series) {
   ink_by_column <- split(ink$y, ink$x)
   path_by_column <- split(series$y, series$x)
   columns <- as.integer(names(path_by_column))
-  residuals <- vapply(
+  excess_heights <- vapply(
     names(path_by_column),
     function(column) {
       retro_data_censor_column(
@@ -130,46 +130,74 @@ retro_data_censor_color <- function(ink, series) {
     },
     numeric(1L)
   )
-  centers <- retro_censor_centers(residuals)
-  if (centers < 2L || length(unique(residuals)) < 2L) {
+  centers <- retro_censor_centers(excess_heights)
+  if (centers < 2L || length(unique(excess_heights)) < 2L) {
     series$censored <- rep(FALSE, nrow(series))
     return(series)
   }
-  clustering <- Ckmeans.1d.dp::Ckmeans.1d.dp(residuals, k = 2L)
+  clustering <- Ckmeans.1d.dp::Ckmeans.1d.dp(excess_heights, k = 2L)
   tick_cluster <- which.max(clustering$centers)
   tick_columns <- columns[clustering$cluster == tick_cluster]
   series$censored <- series$x %in% tick_columns
   series
 }
 
-#' @title Measure one pixel column's ink-beyond-path residual
+#' @title Measure one pixel column's excess ink height
 #' @keywords internal
 #' @noRd
-#' @description Report how far a series' ink extends past its traced path in
-#'   one pixel column: the residual that distinguishes a censoring tick
-#'   mark's ink from the curve's own.
-#' @details The residual is the larger of the two overhangs, at the top of
-#'   the column and at the bottom. A censoring tick is centered on the
-#'   curve and so overhangs both ends, but taking the maximum rather than
-#'   the sum keeps a tick clipped by the panel edge, or one drawn
-#'   asymmetrically, just as detectable.
+#' @description Report how much taller a series' ink is than its traced path
+#'   in one pixel column: the excess height that distinguishes a censoring
+#'   tick mark's ink from the curve's own.
+#' @details The measurement is the ink's top-to-bottom span less the path's
+#'   own span. Subtracting the path's span is what keeps a vertical step
+#'   drop from reading like a tick: where the skeleton traverses the drop it
+#'   spans nearly as many rows as the ink does, so the two spans cancel and
+#'   the column nets out near zero. A tick is different in kind - the path
+#'   runs thinly through it, so the tick's full height survives the
+#'   subtraction.
 #'
-#'   A column with no ink of this color returns `0`. This is where the
-#'   occlusion assumption documented in [retro_data_censor()] lands in the
-#'   code: such a column is either fully overplotted by another series or a
-#'   reconstructed path pixel bridging a gap, and either way there is no
-#'   visible ink to evidence a tick, so `0` keeps it out of the high
-#'   cluster.
-#' @return Numeric scalar, the residual in pixels. `0` when the column has
-#'   no ink of this series' color.
+#'   Because the measurement is a span rather than a one-sided distance, a
+#'   centered tick contributes both its overhangs, above the curve and
+#'   below. That doubles the separation from an ordinary column, which yields
+#'   only the line width. The cost is that a tick clipped by the panel edge,
+#'   or one drawn asymmetrically, keeps only the overhang it has and so
+#'   scores lower than a full tick - still well above line width, but closer
+#'   to the low group.
+#'
+#'   The result is clamped at `0`, which matters for occluded columns. The
+#'   path is reconstructed through occlusion, so a column can hold a skeleton
+#'   spanning many rows above just a stray pixel or two of this series' own
+#'   color. There the path out-spans the ink, and without the clamp the
+#'   difference would be large and negative - an unsigned distance would
+#'   report it as a tall tick. Clamping keeps such a column in the low group,
+#'   where the absence of visible evidence belongs.
+#'
+#'   A column with no ink of this color returns `0` for the same reason. This
+#'   is where the occlusion assumption documented in [retro_data_censor()]
+#'   lands in the code: such a column is either fully overplotted by another
+#'   series or a reconstructed path pixel bridging a gap, and either way
+#'   there is no visible ink to evidence a tick.
+#'
+#'   One limitation is unaddressed. A step drop is flagged at its *outer*
+#'   columns rather than its interior: the skeleton places its vertical spine
+#'   inside the drop, so at the drop's edges the path is thin while the ink
+#'   still spans the whole drop, which is indistinguishable from a very tall
+#'   tick. The subtraction helps only where the skeleton actually traverses
+#'   the drop.
+#' @return Numeric scalar, the excess height in pixels. `0` when the column
+#'   has no ink of this series' color, or when the path spans at least as
+#'   many rows as the ink does.
 #' @param ink_y Integer vector of `y` coordinates of this series' ink in
 #'   this column, or `NULL` if the column has none.
 #' @param path_y Integer vector of `y` coordinates of the traced path in
 #'   this column.
 #' @examples
-#'   # Ink spans rows 5-25, the path spans rows 14-16: the larger overhang
-#'   # is 9 pixels, above.
+#'   # Ink spans rows 5-25 (21 rows), the path spans rows 14-16 (3 rows):
+#'   # 18 pixels of ink the path does not account for.
 #'   retroglyph:::retro_data_censor_column(ink_y = 5L:25L, path_y = 14L:16L)
+#'   # A step drop: the path spans nearly the whole of the ink, so the two
+#'   # spans cancel.
+#'   retroglyph:::retro_data_censor_column(ink_y = 14L:40L, path_y = 16L:38L)
 #'   # A column with no visible ink of this color.
 #'   retroglyph:::retro_data_censor_column(ink_y = NULL, path_y = 14L:16L)
 retro_data_censor_column <- function(ink_y, path_y) {
@@ -178,33 +206,30 @@ retro_data_censor_column <- function(ink_y, path_y) {
     # series, or a reconstructed path pixel in a gap. Nothing to measure.
     return(0)
   }
-  max(
-    abs(max(ink_y) - max(path_y)),
-    abs(min(ink_y) - min(path_y))
-  )
+  max(0, diff(range(ink_y)) - diff(range(path_y)))
 }
 
-#' @title Count the groups a series' residuals fall into
+#' @title Count the groups a series' excess heights fall into
 #' @keywords internal
 #' @noRd
-#' @description Report whether a series' per-column residuals form one group
-#'   or two: one when the figure draws no censoring tick marks and every
-#'   residual is just line width, two when tick ink stands apart from curve
-#'   ink.
+#' @description Report whether a series' per-column excess heights form one
+#'   group or two: one when the figure draws no censoring tick marks and
+#'   every column yields just line width, two when tick ink stands apart
+#'   from curve ink.
 #' @details This is a stub. It always reports `2`, so a figure with no
-#'   censoring tick marks at all currently has its largest-residual columns
+#'   censoring tick marks at all currently has its tallest columns
 #'   labeled as ticks anyway - the k-means in
 #'   [retro_data_censor_color()] will always find a split to make, even in
 #'   noise. Detecting the number of groups is the part of this that needs
 #'   real work, and it lives in its own function so it can be replaced
 #'   outright without touching the measurement or labeling around it.
 #' @return Integer scalar, `1L` or `2L`.
-#' @param residuals Numeric vector of per-column residuals from
+#' @param excess_heights Numeric vector of per-column excess heights from
 #'   [retro_data_censor_column()], one per pixel column of one series.
 #' @examples
 #'   retroglyph:::retro_censor_centers(c(1, 1, 2, 1, 9, 10))
-retro_censor_centers <- function(residuals) {
-  # TODO: detect whether the residuals form one group (a figure with no
+retro_censor_centers <- function(excess_heights) {
+  # TODO: detect whether the excess heights form one group (a figure with no
   # censoring tick marks) or two (curve ink vs. tick ink).
   2L
 }
