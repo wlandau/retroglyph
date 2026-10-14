@@ -14,16 +14,16 @@
 #'   for - is what identifies a tick.
 #'
 #'   The measurement is per pixel column. For one series at one column,
-#'   [retro_data_censor_column()] reports the ink's vertical extent less the
-#'   trace's own: an excess height. An ordinary column's excess height is on
-#'   the order of the line width, since the trace is a one-pixel skeleton
-#'   through a band several pixels thick. A tick column's is much larger,
-#'   since the tick extends well past the line in both directions while the
-#'   trace runs thinly through it. Splitting the excess heights into a low
-#'   group and a high group therefore separates curve ink from tick ink, and
-#'   that is what [retro_data_censor_color()] does, deferring to
-#'   [retro_censor_centers()] for whether they form two groups at all (a
-#'   figure that draws no ticks has only one).
+#'   [retro_data_censor_column()] reports the ink's longest contiguous
+#'   vertical run less the trace's own: an excess height. An ordinary
+#'   column's excess height is on the order of the line width, since the
+#'   trace is a one-pixel skeleton through a band several pixels thick. A
+#'   tick column's is much larger, since the tick extends well past the line
+#'   in both directions while the trace runs thinly through it. Splitting the
+#'   excess heights into a low group and a high group therefore separates
+#'   curve ink from tick ink, and that is what [retro_data_censor_color()]
+#'   does, deferring to [retro_censor_centers()] for whether they form two
+#'   groups at all (a figure that draws no ticks has only one).
 #'
 #'   Occlusion is not accounted for, and cannot be. Where another series and
 #'   its own censoring ticks overplot a target series and its ticks, the
@@ -148,26 +148,34 @@ retro_data_censor_color <- function(ink, series) {
 #' @description Report how much taller a series' ink is than its traced path
 #'   in one pixel column: the excess height that distinguishes a censoring
 #'   tick mark's ink from the curve's own.
-#' @details The measurement is the ink's top-to-bottom span less the path's
-#'   own span. Subtracting the path's span is what keeps a vertical step
-#'   drop from reading like a tick: where the skeleton traverses the drop it
-#'   spans nearly as many rows as the ink does, so the two spans cancel and
-#'   the column nets out near zero. A tick is different in kind - the path
-#'   runs thinly through it, so the tick's full height survives the
-#'   subtraction.
+#' @details The measurement is the ink's longest contiguous vertical run,
+#'   less the path's own longest run. Runs rather than outright ranges
+#'   because a column's ink need not be one piece: a legend swatch, an axis
+#'   annotation, or another series' tick in the same color can leave a
+#'   detached speck elsewhere in the column, and a range taken end to end
+#'   would reach across the gap between them and read as a tall tick. A tick
+#'   mark is a single unbroken run of ink, so measuring the longest run keeps
+#'   the real thing and discards the coincidence.
 #'
-#'   Because the measurement is a span rather than a one-sided distance, a
+#'   Subtracting the path's run is what keeps a vertical step drop from
+#'   reading like a tick: where the skeleton traverses the drop it runs
+#'   nearly as far as the ink does, so the two cancel and the column nets out
+#'   near zero. A tick is different in kind - the path runs thinly through
+#'   it, so the tick's full height survives the subtraction.
+#'
+#'   Because the measurement is a run rather than a one-sided distance, a
 #'   centered tick contributes both its overhangs, above the curve and
 #'   below. That doubles the separation from an ordinary column, which yields
 #'   only the line width. The cost is that a tick clipped by the panel edge,
 #'   or one drawn asymmetrically, keeps only the overhang it has and so
 #'   scores lower than a full tick - still well above line width, but closer
-#'   to the low group.
+#'   to the low group. A tick cut in two by overplotting is reduced the same
+#'   way, to its longer surviving piece.
 #'
 #'   The result is clamped at `0`, which matters for occluded columns. The
 #'   path is reconstructed through occlusion, so a column can hold a skeleton
-#'   spanning many rows above just a stray pixel or two of this series' own
-#'   color. There the path out-spans the ink, and without the clamp the
+#'   running many rows above just a stray pixel or two of this series' own
+#'   color. There the path out-runs the ink, and without the clamp the
 #'   difference would be large and negative - an unsigned distance would
 #'   report it as a tall tick. Clamping keeps such a column in the low group,
 #'   where the absence of visible evidence belongs.
@@ -181,22 +189,28 @@ retro_data_censor_color <- function(ink, series) {
 #'   One limitation is unaddressed. A step drop is flagged at its *outer*
 #'   columns rather than its interior: the skeleton places its vertical spine
 #'   inside the drop, so at the drop's edges the path is thin while the ink
-#'   still spans the whole drop, which is indistinguishable from a very tall
-#'   tick. The subtraction helps only where the skeleton actually traverses
-#'   the drop.
+#'   still runs the whole length of the drop, which is indistinguishable from
+#'   a very tall tick. The subtraction helps only where the skeleton actually
+#'   traverses the drop.
 #' @return Numeric scalar, the excess height in pixels. `0` when the column
-#'   has no ink of this series' color, or when the path spans at least as
-#'   many rows as the ink does.
+#'   has no ink of this series' color, or when the path's longest run is at
+#'   least as long as the ink's.
 #' @param ink_y Integer vector of `y` coordinates of this series' ink in
 #'   this column, or `NULL` if the column has none.
 #' @param path_y Integer vector of `y` coordinates of the traced path in
 #'   this column.
 #' @examples
-#'   # Ink spans rows 5-25 (21 rows), the path spans rows 14-16 (3 rows):
-#'   # 18 pixels of ink the path does not account for.
+#'   # Ink runs rows 5-25 (21 rows), the path rows 14-16 (3 rows): 18 pixels
+#'   # of ink the path does not account for.
 #'   retroglyph:::retro_data_censor_column(ink_y = 5L:25L, path_y = 14L:16L)
-#'   # A step drop: the path spans nearly the whole of the ink, so the two
-#'   # spans cancel.
+#'   # A detached speck of the same color elsewhere in the column is ignored:
+#'   # only the 4-row run around the path counts.
+#'   retroglyph:::retro_data_censor_column(
+#'     ink_y = c(2L:5L, 14L:17L),
+#'     path_y = 15L
+#'   )
+#'   # A step drop: the path runs nearly the whole length of the ink, so the
+#'   # two cancel.
 #'   retroglyph:::retro_data_censor_column(ink_y = 14L:40L, path_y = 16L:38L)
 #'   # A column with no visible ink of this color.
 #'   retroglyph:::retro_data_censor_column(ink_y = NULL, path_y = 14L:16L)
@@ -206,7 +220,15 @@ retro_data_censor_column <- function(ink_y, path_y) {
     # series, or a reconstructed path pixel in a gap. Nothing to measure.
     return(0)
   }
-  max(0, diff(range(ink_y)) - diff(range(path_y)))
+  # Longest contiguous run, not outright range: a gap between adjacent
+  # sorted rows starts a new run, so the cumulative count of gaps labels
+  # each row with the run it belongs to, and the longest run's extent is
+  # its row count less one.
+  run <- function(y) {
+    y <- sort(unique(y))
+    max(tabulate(cumsum(c(1L, diff(y) != 1L)))) - 1L
+  }
+  max(0, run(ink_y) - run(path_y))
 }
 
 #' @title Count the groups a series' excess heights fall into

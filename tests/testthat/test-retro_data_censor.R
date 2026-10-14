@@ -1,9 +1,55 @@
 # --- retro_data_censor_column ----------------------------------------------
 
 test_that("retro_data_censor_column() measures ink height beyond the path", {
-  # Ink spans rows 5-25 (21 rows), the path spans rows 14-16 (3 rows): 18
+  # Ink runs rows 5-25 (21 rows), the path runs rows 14-16 (3 rows): 18
   # pixels of ink height the path does not account for.
   expect_equal(retro_data_censor_column(ink_y = 5L:25L, path_y = 14L:16L), 18)
+})
+
+test_that("retro_data_censor_column() ignores detached ink in the column", {
+  # A legend swatch, axis annotation, or another series' tick in the same
+  # color can leave a speck elsewhere in the column. A range taken end to
+  # end would reach across the gap and read as a tall tick; only the 4-row
+  # run around the path counts.
+  expect_equal(
+    retro_data_censor_column(ink_y = c(2L:5L, 14L:17L), path_y = 15L),
+    3
+  )
+  # Two detached pieces far apart, neither of them a tick.
+  expect_equal(
+    retro_data_censor_column(ink_y = c(14L:15L, 30L:33L), path_y = 15L),
+    3
+  )
+})
+
+test_that("retro_data_censor_column() uses the path's longest run too", {
+  # The path's own longest run is what gets subtracted, so a reconstructed
+  # trace broken into pieces cancels only the piece it has.
+  expect_equal(
+    retro_data_censor_column(ink_y = 5L:25L, path_y = c(6L:8L, 20L:22L)),
+    18
+  )
+})
+
+test_that("retro_data_censor_column() takes the longest run, not the first", {
+  # The tick is the second run in sorted order.
+  expect_equal(
+    retro_data_censor_column(ink_y = c(1L:2L, 20L:30L), path_y = 25L),
+    10
+  )
+})
+
+test_that("retro_data_censor_column() sorts and deduplicates its input", {
+  # Coordinates arrive in whatever order they came out of the image, and a
+  # column's ink can repeat a row.
+  expect_equal(
+    retro_data_censor_column(ink_y = c(16L, 14L, 17L, 15L), path_y = 15L),
+    3
+  )
+  expect_equal(
+    retro_data_censor_column(ink_y = c(15L, 14L, 15L, 16L), path_y = 15L),
+    2
+  )
 })
 
 test_that("retro_data_censor_column() counts both overhangs, not just one", {
@@ -14,16 +60,25 @@ test_that("retro_data_censor_column() counts both overhangs, not just one", {
   expect_equal(retro_data_censor_column(ink_y = 5L:17L, path_y = 15L:16L), 11)
 })
 
+test_that("retro_data_censor_column() reduces a tick cut in two", {
+  # Overplotting can break a tick into pieces. It is measured by its longer
+  # surviving piece, the same way a clipped tick is.
+  expect_equal(
+    retro_data_censor_column(ink_y = c(6L:14L, 18L:25L), path_y = 15L),
+    8
+  )
+})
+
 test_that("retro_data_censor_column() nets out a vertical step drop", {
-  # Where the skeleton traverses a step drop it spans nearly as many rows as
-  # the ink does, so the two spans cancel. Compare against a tick with the
-  # same ink span but a thin path through it.
+  # Where the skeleton traverses a step drop it runs nearly as far as the
+  # ink does, so the two cancel. Compare against a tick with the same ink
+  # run but a thin path through it.
   expect_equal(retro_data_censor_column(ink_y = 14L:40L, path_y = 16L:38L), 4)
   expect_equal(retro_data_censor_column(ink_y = 14L:40L, path_y = 26L:28L), 24)
 })
 
-test_that("retro_data_censor_column() clamps when the path out-spans the ink", {
-  # A reconstructed path bridging an occlusion gap can span many rows above
+test_that("retro_data_censor_column() clamps when the path out-runs the ink", {
+  # A reconstructed path bridging an occlusion gap can run many rows above
   # just a stray pixel of this series' own color. Without the clamp the
   # difference would be large and negative, and an unsigned distance would
   # report it as a tall tick.
